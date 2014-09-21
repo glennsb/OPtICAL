@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+#
+# optical - main driver for ChipSeq analysis pipeline
+# Author:: Stuart Glenn
+# Copyright:: Copyright (c) 2014, Stuart Glenn, Oklahoma Medical Research Foundation
+# License:: BSD
+
+gempath = File.dirname(File.dirname(__FILE__))
+$: << File.join(gempath,'lib')
+
+require 'optical'
