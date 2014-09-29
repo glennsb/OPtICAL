@@ -6,6 +6,7 @@ require 'optical/version'
 Gem::Specification.new do |spec|
   spec.name          = "optical"
   spec.version       = Optical::VERSION
+  spec.date          = Optical::RELEASEDATE
   spec.authors       = ["Stuart Glenn"]
   spec.email         = ["Stuart-Glenn@omrf.org"]
   spec.summary       = %q{OMRF Pipeline for CHiPSeq Analysis}
