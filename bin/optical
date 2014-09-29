@@ -3,9 +3,12 @@
 # optical - main driver for ChipSeq analysis pipeline
 # Author:: Stuart Glenn
 # Copyright:: Copyright (c) 2014, Stuart Glenn, Oklahoma Medical Research Foundation
-# License:: BSD
+# License:: BSD 3-Clause, full license available in LICENSE.txt distributed with this software
 
 gempath = File.dirname(File.dirname(__FILE__))
 $: << File.join(gempath,'lib')
 
 require 'optical'
+require 'optical/cli'
+
+Optical::CLI.new(ARGV).run()
