@@ -16,7 +16,8 @@ class Optical::Configuration
     self.new(samples,confy['settings'])
   end
 
-  attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path
+  attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
+    :alignment_filter
 
   attr_accessor :verbose
 
@@ -24,13 +25,20 @@ class Optical::Configuration
     @verbose = false
     @samples = samples
     @reference_path = settings.fetch(:reference)
-    @alignment_filter = settings.fetch(:alignment_filter)
     @peak_caller = settings.fetch(:peak_caller)
     @qsub_opts = settings.fetch(:qsub_opts,"").split(" ")
     @use_qsub = settings.fetch(:use_qsub,true)
     @skip_fastqc = settings.fetch(:skip_fastqc,false)
     @bwa_threads = settings.fetch(:bwa_threads,1)
     self.output_base = settings.fetch(:output_base,Dir.getwd)
+    @min_map_quality_score = settings.fetch(:min_map_quality_score,0)
+    self.alignment_filter = settings.fetch(:alignment_filter,"NullFilter")
+  end
+
+  def alignment_filter=(filter_klass)
+    filter_klass = "Optical::Filters::#{filter_klass}" unless filter_klass =~ /::/
+    klass = Kernel.const_get(filter_klass)
+    @alignment_filter = klass
   end
 
   def cluster_cmd_prefix(opts = {})

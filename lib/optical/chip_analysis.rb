@@ -97,22 +97,30 @@ class Optical::ChipAnalysis
     end
     Dir.mkdir(outbase)
 
-    #return false unless align_libs(sample.libraries,outbase,sample.safe_name)
+    return false unless filter_libs(sample.libraries,outbase,sample.safe_name)
 
     # 1 or more libs became bams, should now merge to a single bam
     return false unless join_libs(sample.libraries,outbase,sample.safe_name)
 
-    # filter that bam
     # remove duplicates & clean up 83 & 99 flags
 
     return false
+  end
+
+  def filter_libs(libs,outbase,sample_safe_name)
+    libs.each do |lib|
+      filt_bam = lib.aligned_path.sub(/_(\d+\.bam)/,'_filtered_\1')
+      filter = @conf.alignment_filter.new(lib,sample_safe_name,@conf)
+      return false unless filter.filter_to(filt_bam)
+    end
+    return true
   end
 
   def join_libs(libs,outbase,sample_safe_name)
   end
 
   def bwa_aln(lib,lib_bam,sample_safe_name)
-    cmd = @conf.cluster_cmd_prefix(free:1, max:48, sync:true, name:"bwa_#{sample_safe_name}_#{i}", threads:@conf.bwa_threads) +
+    cmd = @conf.cluster_cmd_prefix(free:1, max:48, sync:true, name:"bwa_#{sample_safe_name}", threads:@conf.bwa_threads) +
       %W(/bin/bash -o pipefail -o errexit -c)
     aln_threads = if @conf.bwa_threads > 1
                     @conf.bwa_threads/2
@@ -133,7 +141,7 @@ class Optical::ChipAnalysis
       bwa_cmd += " <(#{aln})"
     end
     bwa_cmd += " #{lib.fastq_paths.join(" ")}"
-    bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{i} > #{lib_bam}"
+    bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
     puts cmd.join(" ") if @conf.verbose

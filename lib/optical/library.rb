@@ -4,7 +4,7 @@
 
 class Optical::Library
   attr_reader :run, :lane, :fastq_paths, :fastqc_paths
-  attr_accessor :aligned_path, :qc_path
+  attr_accessor :aligned_path, :qc_path, :filtered_path
 
   def initialize(opts)
     @run = opts[:run] || ""
