@@ -32,7 +32,7 @@ BEGIN {
   } else if ( lastid != $1 ) {
     if ( 2 == id_counts ) {
       # two matching ends of a pair, should we include them?
-      if ( (r1["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) && (r2["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) ) {
+      if ( (r1["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) || (r2["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) ) {
         if ( (r1["tags"] ~ /XT:A:U/) && (r2["tags"] ~ /XT:A:U/) || 
              (r1["tags"] ~ /XT:A:R/) && (r2["tags"] ~ /XT:A:U/) ||
              (r1["tags"] ~ /XT:A:U/) && (r2["tags"] ~ /XT:A:R/) ) {
@@ -54,10 +54,13 @@ BEGIN {
 END {
   if ( 2 == id_counts ) {
     # two matching ends of a pair, should we include them?
-    if ( (r1["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) && (r2["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) &&
-         (r1["tags"] ~ /XT:A:U/) && (r2["tags"] ~ /XT:A:U/) ) {
+    if ( (r1["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) || (r2["chr"] ~ /chr([[:digit:]]+|[XY]|MT)/) ) {
+      if ( (r1["tags"] ~ /XT:A:U/) && (r2["tags"] ~ /XT:A:U/) || 
+           (r1["tags"] ~ /XT:A:R/) && (r2["tags"] ~ /XT:A:U/) ||
+           (r1["tags"] ~ /XT:A:U/) && (r2["tags"] ~ /XT:A:R/) ) {
            print r1["read"];
            print r2["read"];
+      }
     }
   }
 }
