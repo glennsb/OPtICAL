@@ -15,7 +15,7 @@ class Optical::Filters::NullFilter
   end
 
   def filter_through_awk_script(script,output_bam,min_score=0)
-    File.delete(output_bam)
+    File.delete(output_bam) if File.exists?(output_bam)
     cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"filt_#{@name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
 
