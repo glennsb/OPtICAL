@@ -4,11 +4,11 @@
 
 class Optical::Filters::AtLeastOneEndUnique < Optical::Filters::NullFilter
   def filter_to(output_bam)
-    if @lib.is_paired?
-      filter_through_awk_script(File.join(File.dirname(__FILE__),"paired_end_only_unique.awk"),
-                                output_bam,@conf.min_map_quality_score)
-    else
+    if ! @lib.is_paired?
       raise ArgumentError.new("This filter only works for paired end data")
     end
+
+    filter_through_awk_script(File.join(File.dirname(__FILE__),"paired_end_at_least_one_unique.awk"),
+                                output_bam,@conf.min_map_quality_score,true)
   end
 end
