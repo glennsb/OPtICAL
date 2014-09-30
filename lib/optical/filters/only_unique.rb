@@ -16,19 +16,7 @@ class Optical::Filters::OnlyUnique < Optical::Filters::NullFilter
   end
 
   def only_unique_singles(output_bam)
-    File.delete(output_bam)
-    cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"filt_#{@name}") +
-      %W(/bin/bash -o pipefail -o errexit -c)
-
-    filt_cmd = "samtools view -h -q #{@conf.min_map_quality_score} #{@lib.aligned_path} |" +
-      "awk -f #{File.join(File.dirname(__FILE__),"single_end_only_unique.awk")} | " +
-      "samtools view -Sbh - > #{output_bam}"
-    cmd << "\"#{filt_cmd}\""
-    puts cmd.join(" ") if @conf.verbose
-    unless system(*cmd)
-      return false
-    end
-    @lib.filtered_path = output_bam
-    return true
+    filter_through_awk_script(File.join(File.dirname(__FILE__),"single_end_only_unique.awk"),
+                              output_bam,@conf.min_map_quality_score)
   end
 end

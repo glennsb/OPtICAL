@@ -3,6 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 module Optical::Filters
+  require 'optical/filters/null_filter'
   Dir[File.join( File.dirname(__FILE__),"filters","*.rb")].each do |rb|
     require rb
   end
