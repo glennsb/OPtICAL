@@ -26,6 +26,9 @@ class Optical::Filters::NullFilter
     cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"filt_#{@name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
 
+    if script.kind_of?(Array)
+      script = "#{script[0]} -vfilt=#{script[1]}"
+    end
     filt_cmd = "#{pre_cmd} samtools view -h -q #{min_score} #{bam_to_filter} |" +
       "awk -f #{script} "
     if name_sort_first
