@@ -4,6 +4,9 @@
 
 class Optical::Sample
   attr_reader :name
+
+  attr_accessor :analysis_ready_bam
+
   def initialize(name,libraries)
     @name = name
     @libs = libraries
@@ -14,6 +17,10 @@ class Optical::Sample
     @libs.each do |l|
       yield l
     end
+  end
+
+  def has_paired?()
+    @libs.any?{|l| l.is_paired?}
   end
 
   def safe_name()
