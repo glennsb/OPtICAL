@@ -195,11 +195,12 @@ class Optical::ChipAnalysis
                   else
                     1
                   end
-    bwa_mode = if lib.is_paired?
-                 "sampe"
-               else
-                 "samse"
-               end
+    name_sort = ""
+    bwa_mode = "samse"
+    if lib.is_paired?
+      bwa_mode = "sampe"
+      name_sort = "-n"
+    end
 
     bwa_cmd = "bwa #{bwa_mode} " +
       "-r \\\"@RG\\tID:#{sample_safe_name}_#{lib.run}_#{lib.lane}\\tSM:#{sample_safe_name}\\tPL:Illumina\\tPU:#{lib.lane}\\\" " +
@@ -209,12 +210,12 @@ class Optical::ChipAnalysis
       bwa_cmd += " <(#{aln})"
     end
     bwa_cmd += " #{lib.fastq_paths.join(" ")}"
-    bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
+    bwa_cmd += "| samtools view -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
-      add_error("Failure in bwa of library #{i} for #{sample_safe_name} #{$?.exitstatus}")
+      add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
       return false
     end
     lib.aligned_path = File.join(@conf.output_base,lib_bam)
@@ -238,38 +239,24 @@ class Optical::ChipAnalysis
     endness = "se"
     if lib.is_paired? then
       endness = "pe"
-      qc_bam = File.join(outbase,"#{sample_safe_name}_#{i}_namesorted")
-      sort_cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"namesort_#{sample_safe_name}_#{i}") +
-        %W(samtools sort -n #{lib_bam} #{qc_bam})
-      puts sort_cmd.join(" ") if @conf.verbose
-      unless system(*sort_cmd)
-        add_error("Failure in sorting by name the bam #{i} for #{sample_safe_name} #{$?.exitstatus}")
-        return false
-      end
-      qc_bam += ".bam"
     end
-    qc_file = File.join(outbase,"#{sample_safe_name}_#{i}_alignment_qc.txt")
-    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"align_qc_#{sample_safe_name}_#{i}") +
+    qc_file = lib.aligned_path.sub(/\.bam$/,"_alignment_qc.txt")
+    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"align_qc_#{sample_safe_name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
     qc_cmd += ["'library_complexity.sh #{endness} #{qc_bam}' > #{qc_file}"]
     puts qc_cmd.join(" ") if @conf.verbose
     unless system(*qc_cmd)
-      add_error("Failure in qc bwa of library #{i} for #{sample_safe_name} #{$?.exitstatus}")
+      add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
       return false
     end
     lib.qc_path = qc_file
-    if lib.is_paired? then
-      File.delete(qc_bam)
-    end
     return true
   end
 
   def align_libs(libs,outbase,sample_safe_name)
     libs.each_with_index do |lib,i|
       lib_bam = File.join(outbase,"#{sample_safe_name}_#{i}.bam")
-      # align the fasq to the reference & sort that bam
       return false unless bwa_aln(lib,lib_bam,sample_safe_name)
-      # generate QC .tab file
       return false unless generate_lib_qc_report(lib,sample_safe_name)
     end #each lib
     return true

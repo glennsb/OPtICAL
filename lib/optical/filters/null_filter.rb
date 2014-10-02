@@ -17,11 +17,6 @@ class Optical::Filters::NullFilter
   def filter_through_awk_script(script,output_bam,min_score=0,name_sort_first=false)
     File.delete(output_bam) if File.exists?(output_bam)
     bam_to_filter = @lib.aligned_path
-    if name_sort_first
-      bam_to_filter = "-"
-      pre_cmd = "samtools sort -n -m 8G -o #{@lib.aligned_path} " +
-        "/tmp/name_sort_#{File.basename(@lib.aligned_path)}_#{$$} |"
-    end
 
     cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"filt_#{@name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
@@ -29,7 +24,7 @@ class Optical::Filters::NullFilter
     if script.kind_of?(Array)
       script = "#{script[0]} -vfilt=#{script[1]}"
     end
-    filt_cmd = "#{pre_cmd} samtools view -h -q #{min_score} #{bam_to_filter} |" +
+    filt_cmd = "samtools view -h -q #{min_score} #{bam_to_filter} |" +
       "awk -f #{script} "
     if name_sort_first
       filt_cmd += "| samtools view -Sbuh - | samtools sort -@ 2 -m 4G -o - /tmp/sort_#{$$} > #{output_bam}"
