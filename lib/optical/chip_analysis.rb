@@ -40,7 +40,7 @@ class Optical::ChipAnalysis
     end
 
     if exits.any?{|e| !e}
-      @errs << "A bam prep failed"
+      add_error("A bam prep thread failed")
       return false
     end
 
@@ -97,26 +97,94 @@ class Optical::ChipAnalysis
     end
     Dir.mkdir(outbase)
 
+    return false unless align_libs(sample.libraries,outbase,sample.safe_name)
+
     return false unless filter_libs(sample.libraries,outbase,sample.safe_name)
 
     # 1 or more libs became bams, should now merge to a single bam
-    return false unless join_libs(sample.libraries,outbase,sample.safe_name)
-
     # remove duplicates & clean up 83 & 99 flags
+    return false unless finalize_libraries_for_sample(sample,outbase)
 
-    return false
+    clean_intermediate_bams_for_sample(sample)
+
+    return true
+  end
+
+  def clean_intermediate_bams_for_sample(sample)
+    sample.libraries.each do |l|
+      [l.filtered_path, l.aligned_path].each do |b|
+        if b && "" != b && File.exists?(b)
+          File.delete(b)
+        end
+      end
+    end
   end
 
   def filter_libs(libs,outbase,sample_safe_name)
     libs.each do |lib|
       filt_bam = lib.aligned_path.sub(/_(\d+\.bam)/,'_filtered_\1')
       filter = @conf.alignment_filter.new(lib,sample_safe_name,@conf)
-      return false unless filter.filter_to(filt_bam)
+      unless filter.filter_to(filt_bam)
+        add_error("Unable to filter to #{filt_bam}")
+        return false
+      end
     end
     return true
   end
 
-  def join_libs(libs,outbase,sample_safe_name)
+  def finalize_libraries_for_sample(sample,outbase)
+    final_bam = File.join(outbase,"#{sample.safe_name}_stillduped.bam")
+    tmp_bam = File.join(outbase,"#{sample.safe_name}_tmp.bam")
+    cmd = []
+    # merge each library/lane instance & remove dupes maybe
+    if @conf.remove_duplicates
+      final_bam = File.join(outbase,"#{sample.safe_name}_deduped.bam")
+      metrics_path = File.join(outbase,"#{sample.safe_name}_dedupe_metrics.txt")
+      cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"remove_dupe_#{sample.safe_name}") +
+        %W(picard MarkDuplicates OUTPUT=#{tmp_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
+           COMPRESSION_LEVEL=8 REMOVE_DUPLICATES=TRUE ASSUME_SORTED=true METRICS_FILE=#{metrics_path}) +
+           sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
+    else
+      cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{sample.safe_name}") +
+        %W(picard MergeSameFiles OUTPUT=#{tmp_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
+           COMPRESSION_LEVEL=8 USE_THREADED=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
+           sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
+    end
+    puts cmd.join(" ") if @conf.verbose
+    # DEBUG
+    unless system(*cmd)
+      add_error("Failure in mark dupes/merge of sample #{sample.safe_name} #{$?.exitstatus}")
+      return false
+    end
+
+    # only get the first in pairs (83,99)
+    if sample.has_paired?
+      cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
+        %W(/bin/bash -o pipefail -o errexit -c)
+      filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
+        "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
+      cmd << "\"#{filt}\""
+      puts cmd.join(" ") if @conf.verbose
+      # DEBUG
+      unless system(*cmd)
+        add_error("Failure removing second pairs of sample #{sample.safe_name} #{$?.exitstatus}")
+        return false
+      end
+      File.delete(tmp_bam) if File.exists?(tmp_bam)
+    else
+      File.rename(tmp_bam,final_bam)
+    end
+
+    cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
+      %W(samtools index #{final_bam})
+    puts cmd.join(" ") if @conf.verbose
+    # DEBUG
+    unless system(*cmd)
+      add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
+      return false
+    end
+    sample.analysis_ready_bam = final_bam
+    return true
   end
 
   def bwa_aln(lib,lib_bam,sample_safe_name)
