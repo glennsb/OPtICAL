@@ -6,7 +6,8 @@ class Optical::ChipAnalysis
   DIRS = {
     logs:"logs",
     align:"01_alignment",
-    qc:"00_fastqc"
+    qc:"00_fastqc",
+    vis:"02_visualization"
   }
 
   attr_reader :errs
@@ -26,7 +27,8 @@ class Optical::ChipAnalysis
     @conf.samples do |sample|
       workers << Thread.new do
         fastqc_for_sample(sample) &&
-        prepare_bam_for_sample(sample)
+        prepare_bam_for_sample(sample) &&
+        prepare_visualization_for_sample(sample)
       end
     end
     exits = []
@@ -55,6 +57,7 @@ class Optical::ChipAnalysis
     Dir.mkdir(DIRS[:logs]) unless File.exists?(DIRS[:logs])
     Dir.mkdir(DIRS[:qc]) unless File.exists?(DIRS[:qc])
     Dir.mkdir(DIRS[:align]) unless File.exists?(DIRS[:align])
+    Dir.mkdir(DIRS[:vis]) unless File.exists?(DIRS[:vis])
   end
 
   def fastqc_for_sample(sample)
@@ -87,21 +90,31 @@ class Optical::ChipAnalysis
     return true
   end
 
-  def prepare_bam_for_sample(sample)
-    puts "Preparing bam #{sample.name}" if @conf.verbose
-    outbase = File.join(DIRS[:align],sample.safe_name)
-    if File.exists?(outbase) && !@conf.skip_alignment
-      add_error("#{sample.safe_name} dir already exists in #{DIRS[:align]} unable to process")
-      return false
+  def get_sample_dir_in_stage(safe_name,stage,skip_check)
+    outbase = File.join(DIRS[stage],safe_name)
+    if !skip_check && File.exists?(outbase)
+      add_error("#{safe_name} dir already exists in #{DIRS[stage]} unable to process")
+      return nil
     end
     Dir.mkdir(outbase) unless Dir.exists?(outbase)
+    return outbase
+  end
+
+  def prepare_visualization_for_sample(sample)
+    puts "Preparing visualization files for #{sample.name}'s bam" if @conf.verbose
+    outbase = get_sample_dir_in_stage(sample.safe_name,:vis,@conf.skip_visualization)
+    return false unless outbase
+  end
+
+  def prepare_bam_for_sample(sample)
+    puts "Preparing bam #{sample.name}" if @conf.verbose
+    outbase = get_sample_dir_in_stage(sample.safe_name,:align,@conf.skip_alignment)
+    return false unless outbase
 
     return false unless align_libs(sample.libraries,outbase,sample.safe_name)
 
     return false unless filter_libs(sample.libraries,outbase,sample.safe_name)
 
-    # 1 or more libs became bams, should now merge to a single bam
-    # remove duplicates & clean up 83 & 99 flags
     return false unless finalize_libraries_for_sample(sample,outbase)
 
     clean_intermediate_bams_for_sample(sample) unless @conf.skip_alignment
@@ -135,6 +148,8 @@ class Optical::ChipAnalysis
     return true
   end
 
+  # 1 or more libs became bams, should now merge to a single bam
+  # remove duplicates & clean up 83 & 99 flags
   def finalize_libraries_for_sample(sample,outbase)
     final_bam = File.join(outbase,"#{sample.safe_name}_stillduped.bam")
     tmp_bam = File.join(outbase,"#{sample.safe_name}_tmp.bam")
