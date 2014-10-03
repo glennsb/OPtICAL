@@ -90,12 +90,11 @@ class Optical::ChipAnalysis
   def prepare_bam_for_sample(sample)
     puts "Preparing bam #{sample.name}" if @conf.verbose
     outbase = File.join(DIRS[:align],sample.safe_name)
-    # DEBUGING, skip expensive ops as they work
-    if File.exists?(outbase)
+    if File.exists?(outbase) && !@conf.skip_alignment
       add_error("#{sample.safe_name} dir already exists in #{DIRS[:align]} unable to process")
       return false
     end
-    Dir.mkdir(outbase)
+    Dir.mkdir(outbase) unless Dir.exists?(outbase)
 
     return false unless align_libs(sample.libraries,outbase,sample.safe_name)
 
@@ -105,8 +104,11 @@ class Optical::ChipAnalysis
     # remove duplicates & clean up 83 & 99 flags
     return false unless finalize_libraries_for_sample(sample,outbase)
 
-    clean_intermediate_bams_for_sample(sample)
+    clean_intermediate_bams_for_sample(sample) unless @conf.skip_alignment
 
+    if @conf.verbose
+      puts "#{sample} aligned to #{sample.analysis_ready_bam} & has #{sample.libraries.map {|l| l.qc_path}.join(", ")} alignment qc reports"
+    end
     return true
   end
 
@@ -121,6 +123,7 @@ class Optical::ChipAnalysis
   end
 
   def filter_libs(libs,outbase,sample_safe_name)
+    return true if @conf.skip_alignment
     libs.each do |lib|
       filt_bam = lib.aligned_path.sub(/_(\d+\.bam)/,'_filtered_\1')
       filter = @conf.alignment_filter.new(lib,sample_safe_name,@conf)
@@ -136,6 +139,7 @@ class Optical::ChipAnalysis
     final_bam = File.join(outbase,"#{sample.safe_name}_stillduped.bam")
     tmp_bam = File.join(outbase,"#{sample.safe_name}_tmp.bam")
     cmd = []
+
     # merge each library/lane instance & remove dupes maybe
     if @conf.remove_duplicates
       final_bam = File.join(outbase,"#{sample.safe_name}_deduped.bam")
@@ -150,40 +154,45 @@ class Optical::ChipAnalysis
            COMPRESSION_LEVEL=8 USE_THREADED=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
            sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
     end
-    puts cmd.join(" ") if @conf.verbose
-    # DEBUG
-    unless system(*cmd)
-      add_error("Failure in mark dupes/merge of sample #{sample.safe_name} #{$?.exitstatus}")
-      return false
-    end
-
-    # only get the first in pairs (83,99)
-    if sample.has_paired?
-      cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
-        %W(/bin/bash -o pipefail -o errexit -c)
-      filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
-        "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
-      cmd << "\"#{filt}\""
+    unless @conf.skip_alignment
       puts cmd.join(" ") if @conf.verbose
-      # DEBUG
       unless system(*cmd)
-        add_error("Failure removing second pairs of sample #{sample.safe_name} #{$?.exitstatus}")
+        add_error("Failure in mark dupes/merge of sample #{sample.safe_name} #{$?.exitstatus}")
         return false
       end
-      File.delete(tmp_bam) if File.exists?(tmp_bam)
-    else
-      File.rename(tmp_bam,final_bam)
-    end
 
-    cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
-      %W(samtools index #{final_bam})
-    puts cmd.join(" ") if @conf.verbose
-    # DEBUG
-    unless system(*cmd)
-      add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
+      # only get the first in pairs (83,99)
+      if sample.has_paired?
+        cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
+          %W(/bin/bash -o pipefail -o errexit -c)
+        filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
+          "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
+        cmd << "\"#{filt}\""
+        puts cmd.join(" ") if @conf.verbose
+        unless system(*cmd)
+          add_error("Failure removing second pairs of sample #{sample.safe_name} #{$?.exitstatus}")
+          return false
+        end
+        File.delete(tmp_bam) if File.exists?(tmp_bam)
+      else
+        File.rename(tmp_bam,final_bam)
+      end
+
+      unless @skip_alignment
+        cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
+          %W(samtools index #{final_bam})
+        puts cmd.join(" ") if @conf.verbose
+        unless system(*cmd)
+          add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
+          return false
+        end
+      end
+    end
+    sample.analysis_ready_bam = File.join(@conf.output_base,final_bam)
+    if ! File.exists?(sample.analysis_ready_bam)
+      add_error("Final bam for #{sample.safe_name} does not exist at #{sample.analysis_ready_bam}")
       return false
     end
-    sample.analysis_ready_bam = final_bam
     return true
   end
 
@@ -213,10 +222,12 @@ class Optical::ChipAnalysis
     bwa_cmd += "| samtools view -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
-    puts cmd.join(" ") if @conf.verbose
-    unless system(*cmd)
-      add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
-      return false
+    unless @conf.skip_alignment
+      puts cmd.join(" ") if @conf.verbose
+      unless system(*cmd)
+        add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
+        return false
+      end
     end
     lib.aligned_path = File.join(@conf.output_base,lib_bam)
     return true
@@ -244,10 +255,12 @@ class Optical::ChipAnalysis
     qc_cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"align_qc_#{sample_safe_name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
     qc_cmd += ["'library_complexity.sh #{endness} #{qc_bam}' > #{qc_file}"]
-    puts qc_cmd.join(" ") if @conf.verbose
-    unless system(*qc_cmd)
-      add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
-      return false
+    unless @conf.skip_alignment
+      puts qc_cmd.join(" ") if @conf.verbose
+      unless system(*qc_cmd)
+        add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
+        return false
+      end
     end
     lib.qc_path = qc_file
     return true

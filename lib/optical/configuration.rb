@@ -17,7 +17,7 @@ class Optical::Configuration
   end
 
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
-    :alignment_filter, :remove_duplicates
+    :alignment_filter, :remove_duplicates, :skip_alignment
 
   attr_accessor :verbose
 
@@ -29,6 +29,7 @@ class Optical::Configuration
     @qsub_opts = settings.fetch(:qsub_opts,"").split(" ")
     @use_qsub = settings.fetch(:use_qsub,true)
     @skip_fastqc = settings.fetch(:skip_fastqc,false)
+    @skip_alignment = settings.fetch(:skip_alignment,false)
     @remove_duplicates = settings.fetch(:remove_duplicates,false)
     @bwa_threads = settings.fetch(:bwa_threads,1)
     self.output_base = settings.fetch(:output_base,Dir.getwd)
