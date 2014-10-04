@@ -8,6 +8,7 @@ require "optical/library"
 require "optical/sample"
 require "optical/chip_analysis"
 require "optical/filters"
+require "optical/chip_bam_visual"
 
 module Optical
 end

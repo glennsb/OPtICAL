@@ -5,7 +5,7 @@
 class Optical::Sample
   attr_reader :name
 
-  attr_accessor :analysis_ready_bam
+  attr_accessor :analysis_ready_bam, :bam_visual
 
   def initialize(name,libraries)
     @name = name
