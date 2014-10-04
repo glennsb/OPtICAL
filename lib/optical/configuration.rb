@@ -17,7 +17,8 @@ class Optical::Configuration
   end
 
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
-    :alignment_filter, :remove_duplicates, :skip_alignment, :skip_visualization
+    :alignment_filter, :remove_duplicates, :skip_alignment, :skip_visualization,
+    :default_fragment_size, :wig_step_size
 
   attr_accessor :verbose
 
@@ -35,6 +36,8 @@ class Optical::Configuration
     @bwa_threads = settings.fetch(:bwa_threads,1)
     self.output_base = settings.fetch(:output_base,Dir.getwd)
     @min_map_quality_score = settings.fetch(:min_map_quality_score,0)
+    @default_fragment_size= settings.fetch(:default_fragment_size,0)
+    @wig_step_size = settings.fetch(:wig_step_size,20)
     self.alignment_filter = settings.fetch(:alignment_filter,"NullFilter")
   end
 
