@@ -29,6 +29,19 @@ function pe_bedder(path) {
 }
 
 function se_bedder(path,size) {
+  if ($2==16) {
+    start = ($4+length($10) - size);
+    if (start <=0) {
+      start = 1;
+    }
+    print $3,start,($4-1+length($10)),".","1","-" > path;
+  } else if ($2==0) {
+    start=$4;
+    if (start<=0) {
+      start=1;
+    }
+    print $3,start,($4-1+size),".","1","+" > path;
+  }
 }
 
 {
@@ -38,6 +51,7 @@ function se_bedder(path,size) {
     tlens[$9]++;
     pe_bedder(base"_tmp.bed");
   } else if ("se" == endness) {
+    se_bedder(base"_tmp.bed",size);
   }
 }
 
