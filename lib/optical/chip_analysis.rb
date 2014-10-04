@@ -208,8 +208,9 @@ class Optical::ChipAnalysis
         end
       end
     end
-    sample.analysis_ready_bam = File.join(@conf.output_base,final_bam)
-    if ! File.exists?(sample.analysis_ready_bam)
+    sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
+    sample.analysis_ready_bam.fragment_size = @conf.default_fragment_size
+    if ! File.exists?(sample.analysis_ready_bam.path)
       add_error("Final bam for #{sample.safe_name} does not exist at #{sample.analysis_ready_bam}")
       return false
     end

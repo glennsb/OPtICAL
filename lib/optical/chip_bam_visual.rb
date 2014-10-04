@@ -3,9 +3,12 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::ChipBamVisual
-  def initialize(output_base,input_bam)
+  FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
+
+  def initialize(output_base,input_bam,conf)
     @output_base = output_base
-    @bam_path = input_bam
+    @bam = input_bam
+    @conf = conf
   end
 
   def create_files()
@@ -14,12 +17,13 @@ class Optical::ChipBamVisual
       @errors << "Output directory #{o@utput_base} does not exist"
       return false
     end
-    unless File.exists?(@bam_path)
-      @errors << "Input bam #{@bam_path} does not exist"
+    unless File.exists?(@bam.path)
+      @errors << "Input bam #{@bam} does not exist"
       return false
     end
+    output_prefix = File.join(@output_base,File.basename(@bam.path,".bam"))
 
-    return parse_bam_to_intermediate_files() && false
+    return parse_bam_to_intermediate_files(output_prefix) && false
   end
 
   # we need to the number of alignments, a temp bed, and, TLEN counts
