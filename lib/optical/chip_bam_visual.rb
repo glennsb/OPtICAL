@@ -5,7 +5,7 @@
 class Optical::ChipBamVisual
   FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
 
-  attr_reader :raw_bedgraph_path, :normalized_bedgraph_path, :raw_wig_path
+  attr_reader :raw_bedgraph_path, :normalized_bedgraph_path, :raw_wig_path, :normalized_wig_path
 
   def initialize(output_base,input_bam,conf)
     @output_base = output_base
@@ -30,12 +30,39 @@ class Optical::ChipBamVisual
       make_bedgraph(output_prefix) &&
       clean_tmp_bed(output_prefix) &&
       convert_bed_to_wig(output_prefix) &&
-      normalize_bedgraph(output_prefix) && false
+      normalize_bedgraph(output_prefix) &&
+      normalize_wig(output_prefix) && false
+  end
+
+  def wigh_to_tdf(wig_path)
+    out_path = wig_path.sub(/\.wig$/,'.tdf')
+    cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"wig_tdf_#{File.basename(@bam.path)}") +
+      %W(igvtools toTDF #{wig_path} #{out_path} #{@conf.igv_reference})
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure wig to totdf for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    return true
   end
 
   def clean_tmp_bed(out_prefix)
     bed = "#{out_prefix}_tmp.bed"
     File.delete(bed) if File.exists?(bed)
+    return true
+  end
+
+  def normalize_wig(out_prefix)
+    return false unless @raw_wig_path && File.exists?(@raw_wig_path)
+    out_path = "#{out_prefix}_normalized.wig"
+    cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_wig_#{File.basename(@bam.path)}") +
+      %W(optical normalizeWig -w #{@raw_wig_path} -c #{@bam.num_alignments} -o #{out_path})
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure normalizing wig for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    @noramlized_wig_path = out_path
     return true
   end
 
