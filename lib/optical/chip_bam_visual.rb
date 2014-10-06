@@ -9,6 +9,7 @@ class Optical::ChipBamVisual
     @output_base = output_base
     @bam = input_bam
     @conf = conf
+    @color = @conf.random_visualization_color()
   end
 
   def create_files()
