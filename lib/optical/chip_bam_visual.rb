@@ -5,7 +5,7 @@
 class Optical::ChipBamVisual
   FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
 
-  attr_reader :raw_bedgraph_path, :raw_wig_path
+  attr_reader :raw_bedgraph_path, :normalized_bedgraph_path, :raw_wig_path
 
   def initialize(output_base,input_bam,conf)
     @output_base = output_base
@@ -29,12 +29,27 @@ class Optical::ChipBamVisual
     return parse_bam_to_intermediate_files(output_prefix) &&
       make_bedgraph(output_prefix) &&
       clean_tmp_bed(output_prefix) &&
-      convert_bed_to_wig(output_prefix) && false
+      convert_bed_to_wig(output_prefix) &&
+      normalize_bedgraph(output_prefix) && false
   end
 
   def clean_tmp_bed(out_prefix)
     bed = "#{out_prefix}_tmp.bed"
     File.delete(bed) if File.exists?(bed)
+    return true
+  end
+
+  def normalize_bedgraph(out_prefix)
+    return false unless @raw_bedgraph_path && File.exists?(@raw_bedgraph_path)
+    out_path = "#{out_prefix}_normalized.bedgraph"
+    cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_bedgraph_#{File.basename(@bam.path)}") +
+      %W(optical normalizeBedgraph -b #{@raw_bedgraph_path} -c #{@bam.num_alignments} -o #{out_path})
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure normalizing bedgraph for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    @noramlized_bedgraph_path = out_path
     return true
   end
 
