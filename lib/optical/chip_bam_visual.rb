@@ -5,6 +5,8 @@
 class Optical::ChipBamVisual
   FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
 
+  attr_reader :raw_bedgraph_path, :raw_wig_path
+
   def initialize(output_base,input_bam,conf)
     @output_base = output_base
     @bam = input_bam
@@ -26,7 +28,8 @@ class Optical::ChipBamVisual
 
     return parse_bam_to_intermediate_files(output_prefix) &&
       make_bedgraph(output_prefix) &&
-      clean_tmp_bed(out_prefix) && false
+      clean_tmp_bed(output_prefix) &&
+      convert_bed_to_wig(output_prefix) && false
   end
 
   def clean_tmp_bed(out_prefix)
@@ -35,21 +38,36 @@ class Optical::ChipBamVisual
     return true
   end
 
+  def convert_bed_to_wig(out_prefix)
+    return false unless @raw_bedgraph_path && File.exists?(@raw_bedgraph_path)
+    out_path = @raw_bedgraph_path.sub(/bedgraph$/,'wig')
+    cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"wig_#{File.basename(@bam.path)}") +
+      %W(optical bedgraphToWig -b #{@raw_bedgraph_path} -c #{@color} -s #{@conf.wig_step_size} -o #{out_path})
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure creating wig for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    @raw_wig_path = out_path
+    return true
+  end
+
   def make_bedgraph(out_prefix)
     base = File.basename(@bam.path,".bam")
+    out_path = "#{out_prefix}_raw.bedgraph"
     cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"bedgraph_#{File.basename(@bam.path)}")
     trackopts = <<-EOF
 name="#{base}_raw.bedgraph" description="#{base}_raw.bedgraph" visibility=full color="#{@color}"
     EOF
     cov = "genomeCoverageBed -i #{out_prefix}_tmp.bed -g #{@conf.genome_table_path} -bg -trackline -trackopts '#{trackopts.chomp}'"
-    cov += " > #{out_prefix}_raw.bedgraph"
-    #cmd << "\"#{cov}\""
+    cov += " > #{out_path}"
     cmd << cov
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
       @errors << "Failure creating bedgraph for #{@bam} #{$?.exitstatus}"
       return false
     end
+    @raw_bedgraph_path = "#{out_prefix}_raw.bedgraph"
     return true
   end
 
