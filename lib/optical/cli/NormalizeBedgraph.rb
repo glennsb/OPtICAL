@@ -57,7 +57,7 @@ class Optical::CLI::NormalizeBedgraph
       exit(1)
     end
     exit(0) if ret
-    exit()
+    exit(1)
   end
 
   # TODO make this a classy object
@@ -72,6 +72,7 @@ class Optical::CLI::NormalizeBedgraph
         o.puts "#{chr}\t#{start}\t#{stop}\t#{format("%.2f",score)}"
       end
     end
+    return true
   end
 
   def cli_opts_parsed?()

@@ -64,7 +64,7 @@ class Optical::CLI::BedgraphToWig
       exit(1)
     end
     exit(0) if ret
-    exit()
+    exit(1)
   end
 
   # TODO make this a classy object
@@ -95,6 +95,7 @@ class Optical::CLI::BedgraphToWig
         last_chr = chr
       end
     end
+    return true
   end
 
   def cli_opts_parsed?()
