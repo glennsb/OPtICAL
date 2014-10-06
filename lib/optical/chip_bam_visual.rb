@@ -24,7 +24,33 @@ class Optical::ChipBamVisual
     end
     output_prefix = File.join(@output_base,File.basename(@bam.path,".bam"))
 
-    return parse_bam_to_intermediate_files(output_prefix) && false
+    return parse_bam_to_intermediate_files(output_prefix) &&
+      make_bedgraph(output_prefix) &&
+      clean_tmp_bed(out_prefix) && false
+  end
+
+  def clean_tmp_bed(out_prefix)
+    bed = "#{out_prefix}_tmp.bed"
+    File.delete(bed) if File.exists?(bed)
+    return true
+  end
+
+  def make_bedgraph(out_prefix)
+    base = File.basename(@bam.path,".bam")
+    cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"bedgraph_#{File.basename(@bam.path)}")
+    trackopts = <<-EOF
+name="#{base}_raw.bedgraph" description="#{base}_raw.bedgraph" visibility=full color="#{@color}"
+    EOF
+    cov = "genomeCoverageBed -i #{out_prefix}_tmp.bed -g #{@conf.genome_table_path} -bg -trackline -trackopts '#{trackopts.chomp}'"
+    cov += " > #{out_prefix}_raw.bedgraph"
+    #cmd << "\"#{cov}\""
+    cmd << cov
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure creating bedgraph for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    return true
   end
 
   # we need to the number of alignments, a temp bed, and, TLEN counts
