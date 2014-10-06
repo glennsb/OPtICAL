@@ -16,6 +16,7 @@ class Optical::ChipAnalysis
     $stdout=stdout
     $stderr=stderr
     @conf = conf
+    @conf.random_visualization_color() #we get one now to read the file out of threads
     @errs = []
     @errs_mutex = Mutex.new()
   end
