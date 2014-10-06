@@ -18,7 +18,7 @@ class Optical::Configuration
 
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
     :alignment_filter, :remove_duplicates, :skip_alignment, :skip_visualization,
-    :default_fragment_size, :wig_step_size
+    :default_fragment_size, :wig_step_size, :genome_table_path
 
   attr_accessor :verbose
 
@@ -39,12 +39,26 @@ class Optical::Configuration
     @default_fragment_size= settings.fetch(:default_fragment_size,0)
     @wig_step_size = settings.fetch(:wig_step_size,20)
     self.alignment_filter = settings.fetch(:alignment_filter,"NullFilter")
+    @viz_color_list_path = settings.fetch(:viz_color_list,nil)
+    @genome_table_path = settings.fetch(:genome_table_path,nil)
+    @genome_table_path = File.expand_path(@genome_table_path) unless nil == @genome_table_path
   end
 
   def alignment_filter=(filter_klass)
     filter_klass = "Optical::Filters::#{filter_klass}" unless filter_klass =~ /::/
     klass = Kernel.const_get(filter_klass)
     @alignment_filter = klass
+  end
+
+  def random_visualization_color()
+    unless @color_list
+      @color_list = IO.readlines(File.expand_path(@viz_color_list_path)).map{|x| x.chomp}
+    end
+    if @color_list
+      @color_list.sample()
+    else
+      "54,54,54"
+    end
   end
 
   def cluster_cmd_prefix(opts = {})
