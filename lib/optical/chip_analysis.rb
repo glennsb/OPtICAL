@@ -23,29 +23,8 @@ class Optical::ChipAnalysis
 
   def run()
     setup_directories()
-
-    workers = []
-    @conf.samples do |sample|
-      workers << Thread.new do
-        fastqc_for_sample(sample) &&
-        prepare_bam_for_sample(sample) &&
-        prepare_visualization_for_sample(sample)
-      end
-    end
-    exits = []
-    workers.each do |w|
-      begin
-        exits << w.value()
-      rescue => err
-        exits << false
-        add_error("Error in worker thread: #{err} (#{err.backtrace.first}")
-      end
-    end
-
-    if exits.any?{|e| !e}
-      add_error("A bam prep thread failed")
-      return false
-    end
+    prep_samples_for_peak_calling()
+    call_peaks()
 
     return true if @errs.empty?
     return false
@@ -59,6 +38,41 @@ class Optical::ChipAnalysis
     Dir.mkdir(DIRS[:qc]) unless File.exists?(DIRS[:qc])
     Dir.mkdir(DIRS[:align]) unless File.exists?(DIRS[:align])
     Dir.mkdir(DIRS[:vis]) unless File.exists?(DIRS[:vis])
+  end
+
+  def call_peaks()
+  end
+
+  def threader(enum,&block)
+    workers = []
+    enum.each do |item|
+      workers << Thread.new do
+        block.call(*item)
+      end
+    end
+    exits = []
+    workers.each do |w|
+      begin
+        exits << w.value()
+      rescue => err
+        exits << false
+        add_error("Exception in a worker thread: #{err} (#{err.backtrace.first}")
+      end
+    end
+
+    if exits.any?{|e| !e}
+      add_error("A thread failed")
+      return false
+    end
+    return true
+  end
+
+  def prep_samples_for_peak_calling()
+    threader(@conf.samples) do |name,sample|
+      fastqc_for_sample(sample) &&
+      prepare_bam_for_sample(sample) &&
+      prepare_visualization_for_sample(sample)
+    end
   end
 
   def fastqc_for_sample(sample)
