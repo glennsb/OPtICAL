@@ -9,11 +9,22 @@ class Optical::Configuration
     confy = YAML::load_file(file_path)
     raise "Configuration file missing 'settings' section" unless confy['settings']
     raise "Configguration file mssing 'samples' section" unless confy['samples']
+    raise "Configguration file mssing 'samples' section" unless confy['peak_callers']
     samples = {}
     confy['samples'].each do |name,libs|
       samples[name] = Optical::Sample.new(name,libs.map{|l| Optical::Library.new(l)})
     end
-    self.new(samples,confy['settings'])
+    callers = []
+    confy['peak_callers'].each do |caller_name,opts|
+      caller = Optical::PeakCaller.create(caller_name,opts)
+      caller.pairs.each do |p|
+        p.each do |s|
+          raise "Invalid configuration to peak call of #{s}, not in sample list" unless samples[s]
+        end
+      end
+      callers << caller
+    end
+    self.new(samples,callers,confy['settings'])
   end
 
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
@@ -22,9 +33,10 @@ class Optical::Configuration
 
   attr_accessor :verbose
 
-  def initialize(samples,settings = {})
+  def initialize(samples,callers,settings = {})
     @verbose = false
     @samples = samples
+    @callers = callers
     @reference_path = settings.fetch(:reference)
     @peak_caller = settings.fetch(:peak_caller)
     @qsub_opts = settings.fetch(:qsub_opts,"").split(" ")
@@ -84,6 +96,13 @@ class Optical::Configuration
     return @samples.to_enum unless block_given?
     @samples.each do |name,sample|
       yield sample
+    end
+  end
+
+  def callers()
+    return @callers.to_enum unless block_given?
+    @callers.each do |c|
+      yield c
     end
   end
 
