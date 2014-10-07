@@ -41,6 +41,9 @@ class Optical::ChipAnalysis
   end
 
   def call_peaks()
+    threader(@conf.peak_callers) do |p|
+      do_find_peaks(p)
+    end
   end
 
   def threader(enum,&block)
@@ -73,6 +76,20 @@ class Optical::ChipAnalysis
       prepare_bam_for_sample(sample) &&
       prepare_visualization_for_sample(sample)
     end
+  end
+
+  def do_find_peaks(p)
+    puts "Preparing peak finding for #{p}" if @conf.verbose
+    outbase = get_sample_dir_in_stage(p.safe_name,:peak,false)
+    unless outbase
+      add_error("Failed to get output base dir for peak files for #{p}")
+      return false
+    end
+    unless p.find_peaks(outbase,@conf)
+      add_error("Peak finding error: #{p.error()}")
+      return false
+    end
+    return true
   end
 
   def fastqc_for_sample(sample)
