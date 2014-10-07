@@ -18,7 +18,7 @@ class Optical::Configuration
 
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
     :alignment_filter, :remove_duplicates, :skip_alignment, :skip_visualization,
-    :default_fragment_size, :wig_step_size, :genome_table_path
+    :default_fragment_size, :wig_step_size, :genome_table_path, :igv_reference
 
   attr_accessor :verbose
 
@@ -40,8 +40,14 @@ class Optical::Configuration
     @wig_step_size = settings.fetch(:wig_step_size,20)
     self.alignment_filter = settings.fetch(:alignment_filter,"NullFilter")
     @viz_color_list_path = settings.fetch(:viz_color_list,nil)
-    @genome_table_path = settings.fetch(:genome_table_path,nil)
-    @genome_table_path = File.expand_path(@genome_table_path) unless nil == @genome_table_path
+    @genome_table_path = get_path_conf(:genome_table_path,settings)
+    @igv_reference = get_path_conf(:igv_reference,settings)
+  end
+
+  def get_path_conf(key,settings)
+    path = settings.fetch(key,nil)
+    return nil unless path
+    File.expand_path(path) unless nil == path
   end
 
   def alignment_filter=(filter_klass)
