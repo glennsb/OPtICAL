@@ -5,7 +5,8 @@
 class Optical::ChipBamVisual
   FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
 
-  attr_reader :raw_bedgraph_path, :normalized_bedgraph_path, :raw_wig_path, :normalized_wig_path
+  attr_reader :raw_bedgraph_path, :normalized_bedgraph_path, :raw_wig_path, :normalized_wig_path,
+    :tdf_wig_path
 
   def initialize(output_base,input_bam,conf)
     @output_base = output_base
@@ -31,24 +32,45 @@ class Optical::ChipBamVisual
       clean_tmp_bed(output_prefix) &&
       convert_bed_to_wig(output_prefix) &&
       normalize_bedgraph(output_prefix) &&
-      normalize_wig(output_prefix) && false
+      normalize_wig(output_prefix) &&
+      (@tdf_wig_path = wig_to_tdf(@normalized_wig_path)) &&
+      compress_outputs()
   end
 
-  def wigh_to_tdf(wig_path)
+  def wig_to_tdf(wig_path)
+    unless wig_path && File.exists?(wig_path)
+      @errors << "The given wig #{wig_path} doesn't exist"
+      return false
+    end
     out_path = wig_path.sub(/\.wig$/,'.tdf')
-    cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"wig_tdf_#{File.basename(@bam.path)}") +
+    cmd = @conf.cluster_cmd_prefix(free:6, max:12, sync:true, name:"wig_tdf_#{File.basename(@bam.path)}") +
       %W(igvtools toTDF #{wig_path} #{out_path} #{@conf.igv_reference})
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
       @errors << "Failure wig to totdf for #{@bam} #{$?.exitstatus}"
       return false
     end
-    return true
+    return out_path
   end
 
   def clean_tmp_bed(out_prefix)
     bed = "#{out_prefix}_tmp.bed"
     File.delete(bed) if File.exists?(bed)
+    return true
+  end
+
+  def compress_outputs()
+    files = [@raw_wig_path, @raw_bedgraph_path, @normalized_bedgraph_path, @normalized_wig_path]
+    cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"compress_viz_#{File.basename(@bam.path)}") +
+      %W(gzip) + files
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure compressing visuals for #{@bam} #{$?.exitstatus}"
+      return false
+    end
+    files.each do |f|
+      f = f += ".gz"
+    end
     return true
   end
 
@@ -62,7 +84,7 @@ class Optical::ChipBamVisual
       @errors << "Failure normalizing wig for #{@bam} #{$?.exitstatus}"
       return false
     end
-    @noramlized_wig_path = out_path
+    @normalized_wig_path = out_path
     return true
   end
 
@@ -76,7 +98,7 @@ class Optical::ChipBamVisual
       @errors << "Failure normalizing bedgraph for #{@bam} #{$?.exitstatus}"
       return false
     end
-    @noramlized_bedgraph_path = out_path
+    @normalized_bedgraph_path = out_path
     return true
   end
 
