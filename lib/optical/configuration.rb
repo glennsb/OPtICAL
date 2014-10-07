@@ -83,8 +83,16 @@ class Optical::Configuration
   def cluster_cmd_prefix(opts = {})
     prefix = []
     if @use_qsub
-      job_opts = {sync:true, free:1, max:2}.merge(opts)
-      prefix = %W(qsub -o logs -b y -j y -V -cwd -l virtual_free=#{job_opts[:free]}G,h_vmem=#{job_opts[:max]}G)
+      job_opts = {sync:true, free:1, max:2, wd:'-cwd'}.merge(opts)
+      prefix = %W(qsub -b y -j y -V -l virtual_free=#{job_opts[:free]}G,h_vmem=#{job_opts[:max]}G)
+      prefix += case job_opts[:wd]
+                when '-cwd'
+                  %W(-o logs -cwd)
+                when /^\//
+                  %W(-wd #{job_opts[:wd]} -o #{File.join(Dir.getwd(),"logs")})
+                when /^[^\\]+\//
+                  %W(-wd #{File.join(Dir.getwd(),job_opts[:wd])} -o #{File.join(Dir.getwd(),"logs")})
+                end
       prefix += %w(-sync y) if job_opts.fetch(:sync,false)
       prefix += %W(-N #{job_opts[:name]}) if job_opts[:name] && !job_opts[:name].empty?
       prefix += %W(-pe threaded #{job_opts[:threads]}) if job_opts[:threads]
