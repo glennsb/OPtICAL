@@ -80,7 +80,7 @@ class Optical::ChipAnalysis
 
   def do_find_peaks(p)
     puts "Preparing peak finding for #{p}" if @conf.verbose
-    outbase = get_sample_dir_in_stage(p.safe_name,:peak,false)
+    outbase = get_sample_dir_in_stage(p.safe_name,:peak,@conf.skip_peak_calling)
     unless outbase
       add_error("Failed to get output base dir for peak files for #{p}")
       return false
