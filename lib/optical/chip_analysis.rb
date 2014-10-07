@@ -118,13 +118,16 @@ class Optical::ChipAnalysis
   def prepare_visualization_for_sample(sample)
     puts "Preparing visualization files for #{sample.name}'s bam" if @conf.verbose
     outbase = get_sample_dir_in_stage(sample.safe_name,:vis,@conf.skip_visualization)
-    return false unless outbase
-    sample.bam_visual = Optical::ChipBamVisual.new(outbase,sample.analysis_ready_bam,@conf)
-    unless sample.bam_visual.create_files()
-      add_error(sample.bam_visual.error())
+    unless outbase
+      add_error("Failed to get output base dir for visualiation files")
       return false
     end
-    return false unless outbase
+    sample.bam_visual = Optical::ChipBamVisual.new(outbase,sample.analysis_ready_bam,@conf)
+    unless sample.bam_visual.create_files()
+      add_error("Error in creating visual files: #{sample.bam_visual.error()}")
+      return false
+    end
+    return true
   end
 
   def prepare_bam_for_sample(sample)
