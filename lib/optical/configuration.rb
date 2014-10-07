@@ -15,14 +15,15 @@ class Optical::Configuration
       samples[name] = Optical::Sample.new(name,libs.map{|l| Optical::Library.new(l)})
     end
     callers = []
-    confy['peak_callers'].each do |caller_name,opts|
-      caller = Optical::PeakCaller.create(caller_name,opts)
-      caller.pairs.each do |p|
-        p.each do |s|
+    confy['peak_callers'].each do |caller_name,settings|
+      settings[:sample_pairs].each do |pair|
+        sample_pair = []
+        pair.each do |s|
           raise "Invalid configuration to peak call of #{s}, not in sample list" unless samples[s]
+          sample_pair << samples[s]
         end
+        callers << Optical::PeakCaller.create(settings[:algorithm],caller_name,sample_pair,settings[:opts])
       end
-      callers << caller
     end
     self.new(samples,callers,confy['settings'])
   end
@@ -99,7 +100,7 @@ class Optical::Configuration
     end
   end
 
-  def callers()
+  def peak_callers()
     return @callers.to_enum unless block_given?
     @callers.each do |c|
       yield c
