@@ -7,7 +7,8 @@ class Optical::ChipAnalysis
     logs:"logs",
     align:"01_alignment",
     qc:"00_fastqc",
-    vis:"02_visualization"
+    vis:"02_visualization",
+    peak:"03_peaks"
   }
 
   attr_reader :errs
@@ -34,10 +35,9 @@ class Optical::ChipAnalysis
 
   def setup_directories
     Dir.chdir(@conf.output_base)
-    Dir.mkdir(DIRS[:logs]) unless File.exists?(DIRS[:logs])
-    Dir.mkdir(DIRS[:qc]) unless File.exists?(DIRS[:qc])
-    Dir.mkdir(DIRS[:align]) unless File.exists?(DIRS[:align])
-    Dir.mkdir(DIRS[:vis]) unless File.exists?(DIRS[:vis])
+    DIRS.each do |key,d|
+      Dir.mkdir(d) unless File.exists?(d)
+    end
   end
 
   def call_peaks()
