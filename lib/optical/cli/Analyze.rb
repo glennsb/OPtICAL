@@ -58,7 +58,7 @@ class Optical::CLI::Analyze
     end
     exit(0) if ret
     $stderr.puts "Failure in analysis: #{chip_analysis.errs.join("\n")}"
-    exit()
+    exit(1)
   end
 
   def cli_opts_parsed?()
