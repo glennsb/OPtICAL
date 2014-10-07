@@ -38,7 +38,7 @@ class Optical::ChipBamVisual
   end
 
   def wig_to_tdf(wig_path)
-    unless wig_path && File.exists?(wig_path)
+    if !@conf.skip_visualization && (nil == wig_path || !File.exists?(wig_path))
       @errors << "The given wig #{wig_path} doesn't exist"
       return false
     end
@@ -63,10 +63,10 @@ class Optical::ChipBamVisual
 
   def compress_outputs()
     files = [@raw_wig_path, @raw_bedgraph_path, @normalized_bedgraph_path, @normalized_wig_path]
-    cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"compress_viz_#{File.basename(@bam.path)}") +
-      %W(gzip) + files
-    puts cmd.join(" ") if @conf.verbose
     unless @conf.skip_visualization
+      cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"compress_viz_#{File.basename(@bam.path)}") +
+        %W(gzip) + files
+      puts cmd.join(" ") if @conf.verbose
       unless system(*cmd)
         @errors << "Failure compressing visuals for #{@bam} #{$?.exitstatus}"
         return false
@@ -79,7 +79,10 @@ class Optical::ChipBamVisual
   end
 
   def normalize_wig(out_prefix)
-    return false unless @raw_wig_path && File.exists?(@raw_wig_path)
+    if !@conf.skip_visualization && (nil == @raw_wig_path || !File.exists?(@raw_wig_path))
+      @errors << "Raw wig file doesn't exist, can't normalize for #{@bam}"
+      return false
+    end
     out_path = "#{out_prefix}_normalized.wig"
     cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_wig_#{File.basename(@bam.path)}") +
       %W(optical normalizeWig -w #{@raw_wig_path} -c #{@bam.num_alignments} -o #{out_path})
@@ -95,7 +98,10 @@ class Optical::ChipBamVisual
   end
 
   def normalize_bedgraph(out_prefix)
-    return false unless @raw_bedgraph_path && File.exists?(@raw_bedgraph_path)
+    if !@conf.skip_visualization && @raw_bedgraph_path && !File.exists?(@raw_bedgraph_path)
+      @errors << "Raw bedgraph doesn't exist, can't normalize for #{@bam}"
+      return false
+    end
     out_path = "#{out_prefix}_normalized.bedgraph"
     cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_bedgraph_#{File.basename(@bam.path)}") +
       %W(optical normalizeBedgraph -b #{@raw_bedgraph_path} -c #{@bam.num_alignments} -o #{out_path})
@@ -111,7 +117,10 @@ class Optical::ChipBamVisual
   end
 
   def convert_bed_to_wig(out_prefix)
-    return false unless @raw_bedgraph_path && File.exists?(@raw_bedgraph_path)
+    if !@conf.skip_visualization && !File.exists?(@raw_bedgraph_path)
+      @errors << "Raw bedgraph doesn't exist, can't convert to wig for #{@bam}"
+      return false
+    end
     out_path = @raw_bedgraph_path.sub(/bedgraph$/,'wig')
     cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"wig_#{File.basename(@bam.path)}") +
       %W(optical bedgraphToWig -b #{@raw_bedgraph_path} -c #{@color} -s #{@conf.wig_step_size} -o #{out_path})
