@@ -8,7 +8,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     summit_bed:"_summits.bed", pileup:"_treat_pileup.bdg"}
 
   attr_reader :control_bdg_path, :peak_bed_path, :encode_peak_path, :peak_xls_path, :summit_bed_path,
-    :pileup_path, :model_pdf_path
+    :pileup_path, :model_pdf_path, :encode_peak_vs_gene_path
 
   def find_peaks(output_base,conf)
     full_output_base = File.join(output_base,safe_name)
@@ -28,11 +28,28 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
       return model_to_pdf(full_output_base,conf) &&
         strip_name_prefix_from_peak_names(conf) &&
-        add_track_header_to_file(@peak_bed_path,conf)
+        add_track_header_to_file(@peak_bed_path,conf) &&
+        (@encode_peak_vs_gene_path = find_genes_near_peaks(@encode_peak_path,full_output_base,conf))
     end
     return false
   end
   private
+
+  def find_genes_near_peaks(in_path,out_path,conf)
+    output = "#{out_path}_peak_vs_gene.xls"
+    cmd = conf.cluster_cmd_prefix(free:1, max:1, sync:true, name:"findgenes_#{safe_name()}") +
+      %W(find_nearby_genes.pl #{in_path} #{conf.ucsc_refflat_path} #{output}
+         #{conf.gene_peak_neighbor_distance} 1,2,3,8)
+
+    unless !conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to fine genes near peaks for #{self}: #{$?.exitstatus}"
+        return nil
+      end
+    end
+    return output
+  end
 
   def add_track_header_to_file(path,conf)
     name=File.basename(path)
