@@ -23,19 +23,58 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       @summit_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:summit_bed]
       @pileup_path = full_output_base + MACS_OUTPUT_SUFFICES[:pileup]
 
-    #if @pair[0].has_paired? != @pair[1].has_paired?
-      #@errors << "This comparison mixes Singled & Paired end samples, that might be bad"
-      #return false
-    #end
+      return model_to_pdf(full_output_base,conf) &&
+        strip_name_prefix_from_peak_names(conf)
+    end
+    return false
+  end
+  private
 
-    cmd = conf.cluster_cmd_prefix(free:4, max:8, sync:true, name:"#{self.safe_name}") +
-      %W(macs2 callpeak --bdg -f BAM -t #{@pair[0].analysis_ready_bam.path} -c #{@pair[1].analysis_ready_bam.path}
-         -n #{output_base} --bw #{@pair[0].analysis_ready_bam.fragment_size}) +
-      @cmd_args
-    puts cmd.join(" ") if conf.verbose
-    unless system(*cmd)
-      @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}"
-      return false
+  def strip_name_prefix_from_peak_names(conf)
+    cmd = conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"name_strip_#{safe_name()}") +
+      %W(sed -i '/^chr/ s/#{safe_name()}_//') +
+      [@peak_bed_path, @encode_peak_path, @peak_xls_path, @summit_bed_path]
+
+    unless conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to strip peak name prefix of macs for #{self}: #{$?.exitstatus}"
+        return false
+      end
+    end
+    return true
+  end
+
+  def model_to_pdf(output_base,conf)
+    rscript = "#{safe_name()}_#{MACS_OUTPUT_SUFFICES[:model_r]}"
+    cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4, sync:true, name:"r_#{safe_name()}") +
+      %W(Rscript #{rscript})
+
+    unless conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to make pdf of macs for #{self}: #{$?.exitstatus}"
+        return false
+      end
+      rscript = File.join( File.dirname(output_base), rscript )
+      File.delete(rscript) if File.exists?(rscript)
+    end
+    @model_pdf_path = output_base + MACS_OUTPUT_SUFFICES[:model_pdf]
+    return true
+  end
+
+  def run_macs(output_base,conf)
+    cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"#{safe_name()}") +
+      %W(macs2 callpeak --bdg -f BAM -t #{@pair[0].analysis_ready_bam.path}
+         -c #{@pair[1].analysis_ready_bam.path} -n #{safe_name()}
+         --bw #{@pair[0].analysis_ready_bam.fragment_size}) + @cmd_args
+
+    unless conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}"
+        return false
+      end
     end
     return true
   end
