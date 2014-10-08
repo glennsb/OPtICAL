@@ -3,6 +3,10 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::PeakCaller::Macs < Optical::PeakCaller
+  MACS_OUTPUT_SUFFICES = {control_bdg:"control_lambda.bdg", model_r:"model.r", model_pdf:"model.pdf",
+    peak_bed:"peaks.bed", encode_peak:"peaks.encodePeak", peak_xls:"peaks.xls",
+    summit_bed:"summits.bed", pileup:"treat_pileup.bdg"}
+
   def find_peaks(output_base,conf)
     output_base = File.join(output_base,safe_name)
     @pair.each do |s|
@@ -11,6 +15,13 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
         return false
       end
     end
+    if run_macs(output_base,conf)
+      @control_bdg_path = full_output_base + MACS_OUTPUT_SUFFICES[:control_bdg]
+      @peak_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_bed]
+      @encode_peak_path = full_output_base + MACS_OUTPUT_SUFFICES[:encode_peak]
+      @peak_xls_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_xls]
+      @summit_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:summit_bed]
+      @pileup_path = full_output_base + MACS_OUTPUT_SUFFICES[:pileup]
 
     #if @pair[0].has_paired? != @pair[1].has_paired?
       #@errors << "This comparison mixes Singled & Paired end samples, that might be bad"
