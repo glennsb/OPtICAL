@@ -41,7 +41,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       %W(find_nearby_genes.pl #{in_path} #{conf.ucsc_refflat_path} #{output}
          #{conf.gene_peak_neighbor_distance} 1,2,3,8)
 
-    unless !conf.skip_peak_calling
+    unless conf.skip_peak_calling
       puts cmd.join(" ") if conf.verbose
       unless system(*cmd)
         @errors << "Failed to fine genes near peaks for #{self}: #{$?.exitstatus}"
