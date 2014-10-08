@@ -27,11 +27,30 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       @pileup_path = full_output_base + MACS_OUTPUT_SUFFICES[:pileup]
 
       return model_to_pdf(full_output_base,conf) &&
-        strip_name_prefix_from_peak_names(conf)
+        strip_name_prefix_from_peak_names(conf) &&
+        add_track_header_to_file(@peak_bed_path,conf)
     end
     return false
   end
   private
+
+  def add_track_header_to_file(path,conf)
+    name=File.basename(path)
+    header=<<-EOF
+track name="#{name}" description="#{name}" visibility=full color="#{conf.random_visualization_color()}"
+    EOF
+    cmd = conf.cluster_cmd_prefix(free:1, max:1, sync:true, name:"trackname_#{safe_name()}") +
+      %W(sed -i '1i#{header.chomp}' #{path})
+
+    unless !conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to add track header for #{self}: #{$?.exitstatus}"
+        return false
+      end
+    end
+    return true
+  end
 
   def strip_name_prefix_from_peak_names(conf)
     cmd = conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"name_strip_#{safe_name()}") +
