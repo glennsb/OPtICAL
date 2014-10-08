@@ -3,12 +3,15 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::PeakCaller::Macs < Optical::PeakCaller
-  MACS_OUTPUT_SUFFICES = {control_bdg:"control_lambda.bdg", model_r:"model.r", model_pdf:"model.pdf",
-    peak_bed:"peaks.bed", encode_peak:"peaks.encodePeak", peak_xls:"peaks.xls",
-    summit_bed:"summits.bed", pileup:"treat_pileup.bdg"}
+  MACS_OUTPUT_SUFFICES = {control_bdg:"_control_lambda.bdg", model_r:"_model.r", model_pdf:"_model.pdf",
+    peak_bed:"_peaks.bed", encode_peak:"_peaks.encodePeak", peak_xls:"_peaks.xls",
+    summit_bed:"_summits.bed", pileup:"_treat_pileup.bdg"}
+
+  attr_reader :control_bdg_path, :peak_bed_path, :encode_peak_path, :peak_xls_path, :summit_bed_path,
+    :pileup_path, :model_pdf_path
 
   def find_peaks(output_base,conf)
-    output_base = File.join(output_base,safe_name)
+    full_output_base = File.join(output_base,safe_name)
     @pair.each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam is missing"
