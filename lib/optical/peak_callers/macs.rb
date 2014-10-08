@@ -42,7 +42,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
     cmd = conf.cluster_cmd_prefix(free:1, max:1, sync:true, name:"trackname_#{safe_name()}") +
       %W(sed -i '1i#{header.chomp}' #{path})
 
-    unless !conf.skip_peak_calling
+    unless conf.skip_peak_calling
       puts cmd.join(" ") if conf.verbose
       unless system(*cmd)
         @errors << "Failed to add track header for #{self}: #{$?.exitstatus}"
