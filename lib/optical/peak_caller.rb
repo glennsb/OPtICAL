@@ -27,7 +27,7 @@ class Optical::PeakCaller
   end
 
   def to_s
-    "#{@name} of #{@treatments[0]} vs #{@treatments[0]}"
+    "#{@name} of #{@treatments[0]} vs #{@controls[0]}"
   end
 
   def safe_name
