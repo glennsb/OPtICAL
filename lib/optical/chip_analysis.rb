@@ -206,7 +206,7 @@ class Optical::ChipAnalysis
            sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
     else
       cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{sample.safe_name}") +
-        %W(picard MergeSameFiles OUTPUT=#{tmp_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
+        %W(picard MergeSamFiles OUTPUT=#{tmp_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
            COMPRESSION_LEVEL=8 USE_THREADED=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
            sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
     end
