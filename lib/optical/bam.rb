@@ -3,7 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::Bam
-  
+
   attr_reader :path
 
   attr_accessor :fragment_size, :num_alignments
