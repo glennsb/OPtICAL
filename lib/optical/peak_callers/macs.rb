@@ -12,7 +12,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def find_peaks(output_base,conf)
     full_output_base = File.join(output_base,safe_name)
-    @pair.each do |s|
+    [@treatments[0], @controls[0]].each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam is missing"
         return false
@@ -104,9 +104,9 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
 
   def run_macs(output_base,conf)
     cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"#{safe_name()}") +
-      %W(macs2 callpeak --bdg -f BAM -t #{@pair[0].analysis_ready_bam.path}
-         -c #{@pair[1].analysis_ready_bam.path} -n #{safe_name()}
-         --bw #{@pair[0].analysis_ready_bam.fragment_size}) + @cmd_args
+      %W(macs2 callpeak --bdg -f BAM -t #{@treatments[0].analysis_ready_bam.path}
+         -c #{@controls[0].analysis_ready_bam.path} -n #{safe_name()}
+         --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
 
     unless conf.skip_peak_calling
       puts cmd.join(" ") if conf.verbose

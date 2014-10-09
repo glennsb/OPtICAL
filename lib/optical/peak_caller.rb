@@ -8,32 +8,49 @@ class Optical::PeakCaller
     require rb
   end
 
-  def self.create(algo,name,pair,opts)
+  def self.create(algo,name,treatments,controls,opts)
+    raise InvalidArgument, "No treatments" unless treatments && treatments.size > 0
+    raise InvalidArgument, "No controls" unless controls && controls.size > 0
     klass = "Optical::PeakCaller::#{algo}" unless klass =~ /::/
     klass = Kernel.const_get(klass)
-    klass.new(name,pair,opts)
+    klass.new(name,treatments,controls,opts)
   end
 
   attr_reader :cmd_args, :name
 
-  def initialize(name,pair,opts)
+  def initialize(name,treatments,controls,opts)
     @name = name
     @cmd_args = opts[:args].split(/ /)
-    @pair = pair
+    @treatments = treatments
+    @controls = controls
     @errors = []
   end
 
   def to_s
-    "#{@name} of #{@pair[0]} vs #{@pair[1]}"
+    "#{@name} of #{@treatments[0]} vs #{@treatments[0]}"
   end
 
   def safe_name
-    "#{@name.tr(" ",'_').tr("/","_")}_#{@pair[0].safe_name}_vs_#{@pair[1].safe_name}"
+    "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments[0].safe_name}_vs_#{@controls[0].safe_name}"
   end
 
   def find_peaks(output_base,conf)
     @errors << "The subclass did not define how to find peaks"
     return false
+  end
+
+  def treatment_samples
+    return @treatments.to_enum unless block_given?
+    @treatments.each do |p|
+      yield p
+    end
+  end
+
+  def control_samples
+    return @controls.to_enum unless block_given?
+    @controls.each do |p|
+      yield p
+    end
   end
 
   def sample_ready?(s)

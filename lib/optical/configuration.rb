@@ -16,13 +16,17 @@ class Optical::Configuration
     end
     callers = []
     confy['peak_callers'].each do |caller_name,settings|
-      settings[:sample_pairs].each do |pair|
-        sample_pair = []
-        pair.each do |s|
-          raise "Invalid configuration to peak call of #{s}, not in sample list" unless samples[s]
-          sample_pair << samples[s]
+      settings[:comparisons].each do |comp|
+        treatments = comp[:treatments].split(/,/).map do |s|
+          raise "Invalid sample #{s} in treatment section for #{caller_name}" unless samples.has_key?(s)
+          samples[s]
         end
-        callers << Optical::PeakCaller.create(settings[:algorithm],caller_name,sample_pair,settings[:opts])
+        controls = comp[:controls].split(/,/).map do |s|
+          raise "Invalid sample #{s} in control section for #{caller_name}" unless samples.has_key?(s)
+          samples[s]
+        end
+        callers << Optical::PeakCaller.create(settings[:algorithm],caller_name,treatments,
+                                              controls,settings[:opts])
       end
     end
     self.new(samples,callers,confy['settings'])
