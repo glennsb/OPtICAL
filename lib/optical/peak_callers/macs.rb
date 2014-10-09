@@ -85,7 +85,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
   end
 
   def model_to_pdf(output_base,conf)
-    rscript = "#{safe_name()}_#{MACS_OUTPUT_SUFFICES[:model_r]}"
+    rscript = "#{safe_name()}#{MACS_OUTPUT_SUFFICES[:model_r]}"
     cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4, sync:true, name:"r_#{safe_name()}") +
       %W(Rscript #{rscript})
 
