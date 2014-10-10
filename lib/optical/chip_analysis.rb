@@ -222,6 +222,8 @@ class Optical::ChipAnalysis
         end
       end
     end
+    # TODO add support for masking regions (alaa hg19-blacklist_MergedList.bed)
+    # We can do it with bamutils filter -excludedbed nostrand from the ngsutils package
     sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
     sample.analysis_ready_bam.fragment_size = @conf.default_fragment_size
     if ! File.exists?(sample.analysis_ready_bam.path)
