@@ -63,7 +63,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       puts "Calling peaks for #{p}" if conf.verbose
       #p.find_peaks(output_base,conf)
     end
- 
+
     # Do we need/want to save this pooled bam?
     File.delete(control.analysis_ready_bam.path) if File.exists?(control.analysis_ready_bam.path)
     return true
