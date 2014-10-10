@@ -23,12 +23,9 @@ class Optical::ChipAnalysis
   end
 
   def run()
-    setup_directories()
-    prep_samples_for_peak_calling()
-    call_peaks()
-
-    return true if @errs.empty?
-    return false
+    return setup_directories() &&
+      prep_samples_for_peak_calling() &&
+      call_peaks() && @errs.empty?
   end
 
   private
