@@ -47,27 +47,8 @@ class Optical::ChipAnalysis
   end
 
   def threader(enum,&block)
-    workers = []
-    enum.each do |item|
-      workers << Thread.new do
-        block.call(*item)
-      end
-    end
-    exits = []
-    workers.each do |w|
-      begin
-        exits << w.value()
-      rescue => err
-        exits << false
-        add_error("Exception in a worker thread: #{err} (#{err.backtrace.first}")
-      end
-    end
-
-    if exits.any?{|e| !e}
-      add_error("A thread failed")
-      return false
-    end
-    return true
+    on_error = Proc.new { |msg| add_error(msg) }
+    Optical.threader(enum,on_error,&block)
   end
 
   def prep_samples_for_peak_calling()

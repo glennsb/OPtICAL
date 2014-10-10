@@ -13,4 +13,27 @@ require "optical/bam"
 require "optical/peak_caller"
 
 module Optical
+  def self.threader(enum,on_error,&block)
+    workers = []
+    enum.each do |item|
+      workers << Thread.new do
+        block.call(*item)
+      end
+    end
+    exits = []
+    workers.each do |w|
+      begin
+        exits << w.value()
+      rescue => err
+        exits << false
+        on_error.call("Exception in a worker thread: #{err} (#{err.backtrace.first}")
+      end
+    end
+
+    if exits.any?{|e| !e}
+      on_error.call("A thread failed")
+      return false
+    end
+    return true
+  end
 end
