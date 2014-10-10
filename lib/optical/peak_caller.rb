@@ -12,7 +12,7 @@ class Optical::PeakCaller
     raise InvalidArgument, "No treatments" unless treatments && treatments.size > 0
     raise InvalidArgument, "No controls" unless controls && controls.size > 0
     klass = "Optical::PeakCaller::#{algo}" unless klass =~ /::/
-    klass = Kernel.const_get(klass)
+    klass = klass.split("::").inject(Object) {|o,c| o.const_get c}
     klass.new(name,treatments,controls,opts)
   end
 

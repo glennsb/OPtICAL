@@ -73,7 +73,7 @@ class Optical::Configuration
 
   def alignment_filter=(filter_klass)
     filter_klass = "Optical::Filters::#{filter_klass}" unless filter_klass =~ /::/
-    klass = Kernel.const_get(filter_klass)
+    klass = filter_klass.split("::").inject(Object) {|o,c| o.const_get c}
     @alignment_filter = klass
   end
 

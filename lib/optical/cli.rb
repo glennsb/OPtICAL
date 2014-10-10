@@ -47,7 +47,7 @@ class Optical::CLI
     commands = {}
     Dir[File.join(File.dirname(__FILE__),"cli","*.rb")].each do |rb|
       require rb
-      klass = Kernel.const_get("Optical::CLI::#{File.basename(rb,".rb")}")
+      klass = "Optical::CLI::#{File.basename(rb,".rb")}".split("::").inject(Object) {|o,c| o.const_get c}
       commands[klass.command_name] = klass
     end
     commands
