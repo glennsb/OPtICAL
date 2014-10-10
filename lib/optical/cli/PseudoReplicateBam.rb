@@ -114,9 +114,20 @@ class Optical::CLI::PseudoReplicateBam
     perl_pipe_reader.close
     perl_pipe_writer.close
 
+    do_bail = false
     [sam_header_pid, sam_body_pid, perl_pid, awk_pid].each do |pid|
-      Process.wait(pid)
+      if do_bail
+        Process.kill(9,pid)
+      else
+        Process.wait(pid)
+        unless 0 == $?.exitstatus
+          @errs << "A child failed to exit cleanly, bailing out"
+          do_bail = true
+        end
+      end
     end
+
+    return false if do_abort
 
     @options.num_replicates.times do |r|
       r+=1;
@@ -138,12 +149,20 @@ class Optical::CLI::PseudoReplicateBam
         exec(*cmd)
       }
       [view_pid,sorter_pid].each do |p|
-        Process.wait(p)
+        if do_bail
+          Process.kill(9,pid)
+        else
+          Process.wait(pid)
+          unless 0 == $?.exitstatus
+            @errs << "A child failed to exit cleanly, bailing out"
+            do_bail = true
+          end
+        end
       end
       File.delete(sam) if File.exists?(sam)
     end
 
-    return true
+    return !do_abort
   end
 
   def cli_opts_parsed?()
