@@ -85,7 +85,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
 
     Optical.threader(peakers,on_error) do |p|
       puts "Calling peaks for #{p}" if conf.verbose
-      #p.find_peaks(output_base,conf)
+      p.find_peaks(output_base,conf)
     end
 
     # Do we need/want to save the intermediate bams?
