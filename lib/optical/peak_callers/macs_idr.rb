@@ -24,8 +24,11 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
 
     # Alright IDR peak finding game plane of things TOOD
     # merge all controls to CONTROL
-    control_rep_bam = pool_control_replicates(output_base,conf)
+    control_rep_bam = pool_bams_of_samples(@controls,
+                                           File.join(Dir.getwd,output_base,"#{@controls_name}"),
+                                           conf)
     return false unless control_rep_bam
+    bams_to_clean << control_rep_bam
     control = Optical::Sample.new("#{@controls_name}_pooled",[])
     control.analysis_ready_bam=control_rep_bam
 
@@ -74,16 +77,16 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
   end
 
   private
-  def pool_control_replicates(output_base,conf)
-    pooled_path = File.join(Dir.getwd,output_base,"#{@controls_name}_pooled.bam")
-    if 1 == @controls.size then
+  def pool_bams_of_samples(samples,output_base,conf)
+    pooled_path = "#{output_base}_pooled.bam"
+    if 1 == samples.size then
       require 'fileutils'
-      FileUtils.ln_s(@controls[0].analysis_ready_bam.path,pooled_path) unless File.exists?(pooled_path)
+      FileUtils.ln_s(samples[0].analysis_ready_bam.path,pooled_path) unless File.exists?(pooled_path)
     else
-      return nil unless merge_bams_to(@controls.map{|c| c.analysis_ready_bam.path},pooled_path,conf)
+      return nil unless merge_bams_to(samples.map{|c| c.analysis_ready_bam.path},pooled_path,conf)
     end
-    b = Optical::Bam.new(pooled_path,@controls[0].analysis_ready_bam.paired?)
-    b.fragment_size = @controls.reduce(0) {|sum,c| sum+=c.analysis_ready_bam.fragment_size}/@controls.size
+    b = Optical::Bam.new(pooled_path,samples[0].analysis_ready_bam.paired?)
+    b.fragment_size = samples.reduce(0) {|sum,c| sum+=c.analysis_ready_bam.fragment_size}/samples.size
     return b
   end
 
