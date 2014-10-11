@@ -48,6 +48,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       pseudo_replicates = t.create_pseudo_replicates(2,output_base,conf)
       if pseudo_replicates && 2 == pseudo_replicates.size
         pseudo_replicates.each do |pr|
+          bams_to_clean << pr.analysis_ready_bam
           peakers_mutex.synchronize { peakers << Macs.new(@name,[pr],[control],@opts) }
         end
       else
@@ -59,8 +60,26 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
 
     if @treatments.size > 1
       # merge all treatments to TREATMENT
+      treatments_pooled_bam = pool_bams_of_samples(@treatments,
+                                                  File.join(Dir.getwd,output_base,"#{@treatments_name}"),
+                                                  conf)
+      return false unless treatments_pooled_bam
+      bams_to_clean << treatments_pooled_bam
+      treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
+      treatment.analysis_ready_bam=treatments_pooled_bam
       # peak TREAMENT against CONTROL
+      peakers_mutex.synchronize { peakers << Macs.new(@name,[treatment],[control],@opts) }
       # split TREAMENT to 2 pseudo replicates, peak each against CONTROL
+      pooled_reps = treatment.create_pseudo_replicates(2,output_base,conf)
+      if pooled_reps && 2 == pooled_reps.size
+        pooled_reps.each do |pr|
+          bams_to_clean << pr.analysis_ready_bam.path
+          peakers_mutex.synchronize { peakers << Macs.new(@name,[pr],[control],@opts) }
+        end
+      else
+        on_error.call("Failed to make pseudo replicates for #{treatment}")
+        return false
+      end
     end
 
 
