@@ -20,6 +20,8 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
   end
 
   def find_peaks(output_base,conf)
+    bams_to_clean = []
+
     # Alright IDR peak finding game plane of things TOOD
     # merge all controls to CONTROL
     control_rep_bam = pool_control_replicates(output_base,conf)
@@ -64,8 +66,10 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       #p.find_peaks(output_base,conf)
     end
 
-    # Do we need/want to save this pooled bam?
-    File.delete(control.analysis_ready_bam.path) if File.exists?(control.analysis_ready_bam.path)
+    # Do we need/want to save the intermediate bams?
+    bams_to_clean.each do |b|
+      File.delete(b.path) if File.exists?(b.path)
+    end
     return true
   end
 
