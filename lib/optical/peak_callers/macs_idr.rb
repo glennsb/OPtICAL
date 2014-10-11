@@ -91,11 +91,11 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
   end
 
   def merge_bams_to(inputs,output,conf)
-    cmd = conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{name}") +
+    cmd = conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{safe_name}_#{File.basename(output)}") +
       %W(picard MergeSamFiles OUTPUT=#{output} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
          COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
          inputs.map {|l| "INPUT=#{l}" }
-    unless !conf.skip_peak_calling
+    unless conf.skip_peak_calling
       puts cmd.join(" ") if conf.verbose
       unless system(*cmd)
         @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
