@@ -73,7 +73,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       pooled_reps = treatment.create_pseudo_replicates(2,output_base,conf)
       if pooled_reps && 2 == pooled_reps.size
         pooled_reps.each do |pr|
-          bams_to_clean << pr.analysis_ready_bam.path
+          bams_to_clean << pr.analysis_ready_bam
           peakers_mutex.synchronize { peakers << Macs.new(@name,[pr],[control],@opts) }
         end
       else
