@@ -104,7 +104,70 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     bams_to_clean.each do |b|
       File.delete(b.path) if File.exists?(b.path)
     end
-    return true
+
+    idr_results = []
+    idr_results_mutex = Mutex.new()
+
+    idrs_to_do = original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
+    problem = !Optical.threader(idrs_to_do,on_error) do |pp|
+      if 0 == pp[0].num_peaks || 0 == pp[1].num_peaks
+        idr_results_mutex.synchronize { idr_results << "" }
+      else
+        out = File.join(output_base, "#{pp[0].safe_name}_AND_#{pp[1].safe_name}")
+        cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
+          %W(Rscript #{conf.idr_script} #{pp[0].encode_peak_path} #{pp[1].encode_peak_path}) +
+          %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
+        puts cmd.join(" ") if conf.verbose
+        unless system(*cmd)
+          #@errors << "Failure in idr to #{File.basename(out)} #{$?.exitstatus}"
+          #false
+          out = ""
+        end
+        idr_results_mutex.synchronize { idr_results << out }
+      end
+      true
+    end
+
+    return false if problem
+
+    types_lines = {}
+    #plot each of the idr_rsults
+    #original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
+    {"originals" => {offset:0, data:original_replicates},
+     "self_pseudo_replicates" => {offset:original_replicates.size, data:self_pseudo_replicates},
+     "pooled_pseudo_replicates" => {offset:(original_replicates.size+self_pseudo_replicates.size),data:pooled_pseudo_replicates}}.each do |type,settings|
+      passed = []
+      lines = []
+      settings[:data].size.times do |i|
+        if idr_results[i+settings[:offset]] != ""
+          passed << File.basename(idr_results[i+settings[:offset]])
+          script = "$11 <= #{@idr_threshold} {count++} END{print count}"
+          cmd = %W(awk #{script} #{idr_results[i+settings[:offset]]}-overlapped-peaks.txt)
+          pipe = IO.popen(cmd)
+          lines << pipe.readlines.last.chomp.to_i
+          pipe.close
+        else
+          lines << 0
+        end
+      end
+      types_lines[type] = lines.max
+      if passed.size > 0
+        out = "#{type}_"
+        cmd = conf.cluster_cmd_prefix(wd:output_base, free:2, max:8, sync:true, name:"idr_plot_#{type}_#{safe_name()}") +
+          %W(Rscript #{conf.idr_plot_script} #{passed.size} #{out}) + passed
+        puts cmd.join(" ") if conf.verbose
+        unless system(*cmd)
+          #@errors << "Failure in idr to #{File.basename(out)} #{$?.exitstatus}"
+          #false
+        end
+      end
+     end
+
+    types_lines.each do |type,line|
+      puts "#{type} had a max of #{line} peaks under the #{@idr_threshold} threshold"
+    end
+
+    return @errors.empty?
   end
 
   private
