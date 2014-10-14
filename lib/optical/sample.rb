@@ -45,7 +45,7 @@ class Optical::Sample
     replicate_samples = []
     num_replicates.times do |r|
       rep = (r+1).to_s.rjust(2,"0")
-      path = "#{outname}_#{rep}"
+      path = "#{outname}_#{rep}.bam"
       b = Optical::Bam.new(path,has_paired?())
       b.fragment_size = analysis_ready_bam.fragment_size()
       rep = Optical::Sample.new("#{rep_base_name}_#{rep}",[])
