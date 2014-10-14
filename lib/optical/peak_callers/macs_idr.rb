@@ -24,10 +24,9 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
   def find_peaks(output_base,conf)
     bams_to_clean = []
 
-    # Alright IDR peak finding game plane of things TOOD
     # merge all controls to CONTROL
     control_rep_bam = pool_bams_of_samples(@controls,
-                                           File.join(Dir.getwd,output_base,"#{@controls_name}"),
+                                           File.join(Dir.getwd,output_base,@controls_name),
                                            conf)
     return false unless control_rep_bam
     bams_to_clean << control_rep_bam
@@ -63,7 +62,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     if @treatments.size > 1
       # merge all treatments to TREATMENT
       treatments_pooled_bam = pool_bams_of_samples(@treatments,
-                                                  File.join(Dir.getwd,output_base,"#{@treatments_name}"),
+                                                  File.join(Dir.getwd,output_base,@treatments_name),
                                                   conf)
       return false unless treatments_pooled_bam
       bams_to_clean << treatments_pooled_bam
