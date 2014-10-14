@@ -35,7 +35,8 @@ class Optical::Configuration
   attr_reader :output_base, :skip_fastqc, :bwa_threads, :reference_path, :min_map_quality_score,
     :alignment_filter, :remove_duplicates, :skip_alignment, :skip_visualization,
     :default_fragment_size, :wig_step_size, :genome_table_path, :igv_reference,
-    :skip_peak_calling, :gene_peak_neighbor_distance, :ucsc_refflat_path
+    :skip_peak_calling, :gene_peak_neighbor_distance, :ucsc_refflat_path, :idr_script,
+    :idr_plot_script
 
   attr_accessor :verbose
 
@@ -61,6 +62,8 @@ class Optical::Configuration
     @viz_color_list_path = settings.fetch(:viz_color_list,nil)
     @genome_table_path = get_path_conf(:genome_table_path,settings)
     @ucsc_refflat_path = get_path_conf(:ucsc_refflat,settings)
+    @idr_script = get_path_conf(:idr_script,settings)
+    @idr_plot_script = get_path_conf(:idr_plot_script,settings)
     @igv_reference = get_path_conf(:igv_reference,settings)
     @gene_peak_neighbor_distance = settings.fetch(:gene_peak_neighbor_distance,10000)
   end
