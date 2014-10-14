@@ -212,6 +212,20 @@ class Optical::ChipAnalysis
         File.rename(tmp_bam,final_bam)
       end
 
+      if @conf.alignment_masking_bed_path
+        # We can do it with bamutils filter -excludedbed nostrand from the ngsutils package
+        input_path = final_bam.dup
+        final_bam.sub!(/\.bam/,"_masked.bam")
+        cmd = @conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"mask_#{sample.safe_name}") +
+          %W(bamutils filter #{input_path} #{final_bam} -excludebed #{@conf.alignment_masking_bed_path} nostrand)
+        puts cmd.join(" ") if @conf.verbose
+        unless system(*cmd)
+          add_error("Failure masking #{sample.safe_name} #{$?.exitstatus}")
+          return false
+        end
+        File.delete(input_path) if File.exists?(input_path)
+      end
+
       unless @skip_alignment
         cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
           %W(samtools index #{final_bam})
@@ -222,9 +236,8 @@ class Optical::ChipAnalysis
         end
       end
     end
-    # TODO add support for masking regions (alaa hg19-blacklist_MergedList.bed)
-    # We can do it with bamutils filter -excludedbed nostrand from the ngsutils package
-    sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
+
+    sample.analysis_ready_bam = Optical::Bam.new(final_bam,sample.has_paired?)
     sample.analysis_ready_bam.fragment_size = @conf.default_fragment_size
     if ! File.exists?(sample.analysis_ready_bam.path)
       add_error("Final bam for #{sample.safe_name} does not exist at #{sample.analysis_ready_bam}")
