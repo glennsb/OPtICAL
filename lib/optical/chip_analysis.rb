@@ -226,14 +226,16 @@ class Optical::ChipAnalysis
         File.delete(input_path) if File.exists?(input_path)
       end
 
-      unless @skip_alignment
-        cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
-          %W(samtools index #{final_bam})
-        puts cmd.join(" ") if @conf.verbose
-        unless system(*cmd)
-          add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
-          return false
-        end
+      cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
+        %W(samtools index #{final_bam})
+      puts cmd.join(" ") if @conf.verbose
+      unless system(*cmd)
+        add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
+        return false
+      end
+    else
+      if @conf.alignment_masking_bed_path
+        final_bam.sub!(/\.bam/,"_masked.bam")
       end
     end
 
