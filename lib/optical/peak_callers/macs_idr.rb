@@ -34,9 +34,9 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     control.analysis_ready_bam=control_rep_bam
 
     peakers = @treatments.map do |t|
-      # peak each treatment against CONTROL
-      Macs.new(@name,[t],[control],@opts)
+      Macs.new("idr",[t],[control],@opts)
     end
+    original_replicates = [peakers.combination(2).to_a]
 
     errs_mutex = Mutex.new()
     on_error = Proc.new do |msg|
@@ -44,14 +44,20 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     end
 
     peakers_mutex = Mutex.new()
+    idrs_to_do_mutex = Mutex.new()
+    self_pseudo_replicates = []
     # split each treatment to 2 pseudo replicates, peak each against CONTROL
     problem = !Optical.threader(@treatments,on_error) do |t|
-      pseudo_replicates = t.create_pseudo_replicates(2,output_base,conf)
+      pseudo_replicates = t.create_pseudo_replicates(2,File.expand_path(output_base),conf)
       if pseudo_replicates && 2 == pseudo_replicates.size
+        to_idr = []
         pseudo_replicates.each do |pr|
           bams_to_clean << pr.analysis_ready_bam
-          peakers_mutex.synchronize { peakers << Macs.new(@name,[pr],[control],@opts) }
+          p = Macs.new("idr",[pr],[control],@opts)
+          to_idr << p
+          peakers_mutex.synchronize { peakers << p }
         end
+        idrs_to_do_mutex.synchronize { self_pseudo_replicates << [to_idr] }
       else
         on_error.call("Failed to make pseudo replicates for #{t}")
         false
@@ -59,6 +65,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     end
     return false if problem
 
+    pooled_pseudo_replicates = []
     if @treatments.size > 1
       # merge all treatments to TREATMENT
       treatments_pooled_bam = pool_bams_of_samples(@treatments,
@@ -68,15 +75,17 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       bams_to_clean << treatments_pooled_bam
       treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
       treatment.analysis_ready_bam=treatments_pooled_bam
-      # peak TREAMENT against CONTROL
-      peakers_mutex.synchronize { peakers << Macs.new(@name,[treatment],[control],@opts) }
       # split TREAMENT to 2 pseudo replicates, peak each against CONTROL
-      pooled_reps = treatment.create_pseudo_replicates(2,output_base,conf)
+      pooled_reps = treatment.create_pseudo_replicates(2,File.expand_path(output_base),conf)
       if pooled_reps && 2 == pooled_reps.size
+        to_idr = []
         pooled_reps.each do |pr|
           bams_to_clean << pr.analysis_ready_bam
-          peakers_mutex.synchronize { peakers << Macs.new(@name,[pr],[control],@opts) }
+          p = Macs.new("idr",[pr],[control],@opts)
+          to_idr << p
+          peakers_mutex.synchronize { peakers << p }
         end
+        idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << [to_idr] }
       else
         on_error.call("Failed to make pseudo replicates for #{treatment}")
         return false
