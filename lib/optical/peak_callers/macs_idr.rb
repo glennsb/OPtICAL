@@ -36,7 +36,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     peakers = @treatments.map do |t|
       Macs.new("idr",[t],[control],@opts)
     end
-    original_replicates = [peakers.combination(2).to_a]
+    original_replicates = peakers.combination(2).to_a
 
     errs_mutex = Mutex.new()
     on_error = Proc.new do |msg|
@@ -57,7 +57,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
           to_idr << p
           peakers_mutex.synchronize { peakers << p }
         end
-        idrs_to_do_mutex.synchronize { self_pseudo_replicates << [to_idr] }
+        idrs_to_do_mutex.synchronize { self_pseudo_replicates << to_idr }
       else
         on_error.call("Failed to make pseudo replicates for #{t}")
         false
@@ -85,7 +85,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
           to_idr << p
           peakers_mutex.synchronize { peakers << p }
         end
-        idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << [to_idr] }
+        idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << to_idr }
       else
         on_error.call("Failed to make pseudo replicates for #{treatment}")
         return false
@@ -115,13 +115,14 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     idr_results_mutex = Mutex.new()
 
     idrs_to_do = original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
-    problem = !Optical.threader(idrs_to_do,on_error) do |pp|
-      if 0 == pp[0].num_peaks || 0 == pp[1].num_peaks
+    problem = !Optical.threader(idrs_to_do.each,on_error) do |idr|
+      if 0 == idr[0].num_peaks || 0 == idr[1].num_peaks
+        puts "No peaks! #{idr[0]} had #{idr[0].num_peaks}, #{idr[1]} had #{idr[1].num_peaks}"
         idr_results_mutex.synchronize { idr_results << "" }
       else
-        out = File.join(output_base, "#{pp[0].safe_name}_AND_#{pp[1].safe_name}")
+        out = File.join(output_base, "#{idr[0].safe_name}_AND_#{idr[1].safe_name}")
         cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
-          %W(Rscript #{conf.idr_script} #{pp[0].encode_peak_path} #{pp[1].encode_peak_path}) +
+          %W(Rscript #{conf.idr_script} #{idr[0].encode_peak_path} #{idr[1].encode_peak_path}) +
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
         puts cmd.join(" ") if conf.verbose
         unless system(*cmd)

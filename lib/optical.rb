@@ -17,7 +17,7 @@ module Optical
     workers = []
     enum.each do |item|
       workers << Thread.new do
-        block.call(*item)
+        block.call(item)
       end
     end
     exits = []
