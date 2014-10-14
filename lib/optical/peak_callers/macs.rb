@@ -33,6 +33,16 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     end
     return false
   end
+
+  def num_peaks()
+    unless @num_peaks
+      @num_peaks = 0
+      IO.foreach(@encode_peak_path) do
+        @num_peaks+=1
+      end
+    end
+    return @num_peaks
+  end
   private
 
   def find_genes_near_peaks(in_path,out_path,conf)
