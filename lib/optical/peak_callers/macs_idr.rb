@@ -95,7 +95,12 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
 
     problem = !Optical.threader(peakers,on_error) do |p|
       puts "Calling peaks for #{p}" if conf.verbose
-      p.find_peaks(output_base,conf)
+      unless p.find_peaks(output_base,conf)
+        on_error.call(p.error())
+        false
+      else
+        true
+      end
     end
 
     return false if problem
@@ -105,6 +110,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       File.delete(b.path) if File.exists?(b.path)
     end
 
+    #TODO clean this up
     idr_results = []
     idr_results_mutex = Mutex.new()
 

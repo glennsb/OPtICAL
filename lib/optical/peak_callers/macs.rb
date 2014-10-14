@@ -14,7 +14,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     full_output_base = File.join(output_base,safe_name)
     [@treatments[0], @controls[0]].each do |s|
       unless sample_ready?(s)
-        @errors << "The sample #{s} is not ready, the bam is missing"
+        @errors << "The sample #{s} is not ready, the bam (#{s.analysis_ready_bam}) is missing"
         return false
       end
     end
