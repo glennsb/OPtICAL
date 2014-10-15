@@ -140,9 +140,9 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     types_lines = {}
     #plot each of the idr_rsults
     #original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
-    {"originals" => {offset:0, data:original_replicates},
-     "self_pseudo_replicates" => {offset:original_replicates.size, data:self_pseudo_replicates},
-     "pooled_pseudo_replicates" => {offset:(original_replicates.size+self_pseudo_replicates.size),data:pooled_pseudo_replicates}}.each do |type,settings|
+    {:originals => {offset:0, data:original_replicates},
+     :self_pseudo_replicates => {offset:original_replicates.size, data:self_pseudo_replicates},
+     :pooled_pseudo_replicates => {offset:(original_replicates.size+self_pseudo_replicates.size),data:pooled_pseudo_replicates}}.each do |type,settings|
       passed = []
       lines = []
       settings[:data].size.times do |i|
@@ -157,16 +157,14 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
           lines << 0
         end
       end
-      types_lines[type] = lines.max
+      types_lines[type] = lines
       if passed.size > 0
         out = "#{type}_"
         cmd = conf.cluster_cmd_prefix(wd:output_base, free:2, max:8, sync:true, name:"idr_plot_#{type}_#{safe_name()}") +
           %W(Rscript #{conf.idr_plot_script} #{passed.size} #{out}) + passed
         puts cmd.join(" ") if conf.verbose
-        unless system(*cmd)
-          #@errors << "Failure in idr to #{File.basename(out)} #{$?.exitstatus}"
-          #false
-        end
+        system(*cmd)
+        true
       end
      end
 
