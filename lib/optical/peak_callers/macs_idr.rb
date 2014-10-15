@@ -168,9 +168,42 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       end
      end
 
-    types_lines.each do |type,line|
-      puts "#{type} had a max of #{line} peaks under the #{@idr_threshold} threshold"
+    types_lines.each do |type,lines|
+      non_zeros = lines.select {|x| x>0}
+      puts "#{type} had a max of #{lines.max} peaks under the #{@idr_threshold} threshold from #{non_zeros.size}"
+      if non_zeros.size != lines.size
+        puts "WARNING: #{type} had #{lines.size-non_zeros.size} with 0 passing overlaps"
+      end
+      non_zeros.combination(2) do |pair|
+        pair.sort!
+        if pair[1]/pair[0].to_f > 2.0
+          puts "WARNING: #{type} had some passing not within the 2x (#{pair.join(", ")})"
+        end
+      end
     end
+    conservative_count = types_lines[:originals].max
+    optimal_count = types_lines[:pooled_pseudo_replicates].max
+    c = [conservative_count, optimal_count].sort
+    if c[1]/c[0].to_f > 2.0
+      puts "WARNING: The conservative count & optimal count not within 2x #{c.join(", ")})"
+    end
+    optimal_count = c.max
+
+    types_counts = {"conservative" => conservative_count, "optimal" => optimal_count}
+    problem = !Optical.threader(types_counts,on_error) do |type,count|
+      puts "Getting #{type} #{count} of final peaks from #{merged_vs_merged_peaker}"
+      out = "final_#{type}_#{File.basename(merged_vs_merged_peaker.encode_peak_path)}"
+      cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:2, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
+        ["sort -k8 -n -r #{File.basename(merged_vs_merged_peaker.encode_peak_path)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        on_error.call("Failure in creating final #{type} for #{safe_name}")
+        false
+      else
+        true
+      end
+    end
+    return false if problem
 
     return @errors.empty?
   end
