@@ -20,7 +20,7 @@ class Optical::PeakCaller
 
   def initialize(name,treatments,controls,opts)
     @name = name
-    @cmd_args = opts[:args].split(/ /)
+    @cmd_args = (opts[:args]||"").split(/ /)
     @treatments = treatments
     @controls = controls
     @errors = []
