@@ -92,6 +92,8 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
       end
     end
 
+    merged_vs_merged_peaker = Macs.new("idr",[treatment],[control],@opts)
+    peakers << merged_vs_merged_peaker
 
     problem = !Optical.threader(peakers,on_error) do |p|
       puts "Calling peaks for #{p}" if conf.verbose
