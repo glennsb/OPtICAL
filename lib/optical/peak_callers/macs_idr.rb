@@ -99,6 +99,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
         on_error.call(p.error())
         false
       else
+        p.num_peaks #we get it here once, to avoid thread errors later
         true
       end
     end
@@ -126,8 +127,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
         puts cmd.join(" ") if conf.verbose
         unless system(*cmd)
-          #@errors << "Failure in idr to #{File.basename(out)} #{$?.exitstatus}"
-          #false
+          #this can fail "safely", we'll just say in such a case there are no results
           out = ""
         end
         idr_results_mutex.synchronize { idr_results << out }
