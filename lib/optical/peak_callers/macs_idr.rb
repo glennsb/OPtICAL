@@ -66,30 +66,28 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     return false if problem
 
     pooled_pseudo_replicates = []
-    if @treatments.size > 1
-      # merge all treatments to TREATMENT
-      treatments_pooled_bam = pool_bams_of_samples(@treatments,
-                                                  File.join(Dir.getwd,output_base,@treatments_name),
-                                                  conf)
-      return false unless treatments_pooled_bam
-      bams_to_clean << treatments_pooled_bam
-      treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
-      treatment.analysis_ready_bam=treatments_pooled_bam
-      # split TREAMENT to 2 pseudo replicates, peak each against CONTROL
-      pooled_reps = treatment.create_pseudo_replicates(2,File.expand_path(output_base),conf)
-      if pooled_reps && 2 == pooled_reps.size
-        to_idr = []
-        pooled_reps.each do |pr|
-          bams_to_clean << pr.analysis_ready_bam
-          p = Macs.new("idr",[pr],[control],@opts)
-          to_idr << p
-          peakers_mutex.synchronize { peakers << p }
-        end
-        idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << to_idr }
-      else
-        on_error.call("Failed to make pseudo replicates for #{treatment}")
-        return false
+    # merge all treatments to TREATMENT
+    treatments_pooled_bam = pool_bams_of_samples(@treatments,
+                                                File.join(Dir.getwd,output_base,@treatments_name),
+                                                conf)
+    return false unless treatments_pooled_bam
+    bams_to_clean << treatments_pooled_bam
+    treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
+    treatment.analysis_ready_bam=treatments_pooled_bam
+    # split TREAMENT to 2 pseudo replicates, peak each against CONTROL
+    pooled_reps = treatment.create_pseudo_replicates(2,File.expand_path(output_base),conf)
+    if pooled_reps && 2 == pooled_reps.size
+      to_idr = []
+      pooled_reps.each do |pr|
+        bams_to_clean << pr.analysis_ready_bam
+        p = Macs.new("idr",[pr],[control],@opts)
+        to_idr << p
+        peakers_mutex.synchronize { peakers << p }
       end
+      idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << to_idr }
+    else
+      on_error.call("Failed to make pseudo replicates for #{treatment}")
+      return false
     end
 
     merged_vs_merged_peaker = Macs.new("idr",[treatment],[control],@opts)
