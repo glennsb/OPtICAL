@@ -4,6 +4,8 @@
 
 class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
 
+  Idr = Struct.new(:peak_pair, :results, :passing_peaks)
+
   def initialize(name,treatments,controls,opts)
     super
     @idr_args = (opts[:idr_args] || "0.3 F p.value hg19").split(/ /)
@@ -22,73 +24,41 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
   end
 
   def find_peaks(output_base,conf)
-    bams_to_clean = []
-
-    # merge all controls to CONTROL
-    control_rep_bam = pool_bams_of_samples(@controls,
+    # We want a single merged CONTROL sample for all peak calling
+    control = Optical::Sample.new("#{@controls_name}_pooled",[])
+    control.analysis_ready_bam = pool_bams_of_samples(@controls,
                                            File.join(Dir.getwd,output_base,@controls_name),
                                            conf)
-    return false unless control_rep_bam
-    bams_to_clean << control_rep_bam
-    control = Optical::Sample.new("#{@controls_name}_pooled",[])
-    control.analysis_ready_bam=control_rep_bam
+    return false unless control.analysis_ready_bam
+
+    # We will also use a merged TREATMENT for pseudo reps & final peak calling
+    treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
+    treatment.analysis_ready_bam = pool_bams_of_samples(@treatments,
+                                                File.join(Dir.getwd,output_base,@treatments_name),
+                                                conf)
+    return false unless treatment.analysis_ready_bam
 
     peakers = @treatments.map do |t|
       Macs.new("idr",[t],[control],@opts)
     end
-    original_replicates = peakers.combination(2).to_a
+    idrs = {}
+    peakers.combination(2).each do |peak_pair|
+      idrs[:original] ||= []
+      idrs[:original] << Idr.new(peak_pair,nil)
+    end
 
     errs_mutex = Mutex.new()
     on_error = Proc.new do |msg|
       errs_mutex.synchronize { @errors << msg }
     end
 
-    peakers_mutex = Mutex.new()
-    idrs_to_do_mutex = Mutex.new()
-    self_pseudo_replicates = []
-    # split each treatment to 2 pseudo replicates, peak each against CONTROL
-    problem = !Optical.threader(@treatments,on_error) do |t|
-      pseudo_replicates = t.create_pseudo_replicates(2,File.expand_path(output_base),conf)
-      if pseudo_replicates && 2 == pseudo_replicates.size
-        to_idr = []
-        pseudo_replicates.each do |pr|
-          bams_to_clean << pr.analysis_ready_bam
-          p = Macs.new("idr",[pr],[control],@opts)
-          to_idr << p
-          peakers_mutex.synchronize { peakers << p }
-        end
-        idrs_to_do_mutex.synchronize { self_pseudo_replicates << to_idr }
-      else
-        on_error.call("Failed to make pseudo replicates for #{t}")
-        false
-      end
-    end
-    return false if problem
+    idrs[:self_pseudo_replicates] = add_self_replicate_peakers(@treatments,control,output_base,
+                                                               conf,peakers,on_error)
+    return false unless idrs[:self_pseudo_replicates]
 
-    pooled_pseudo_replicates = []
-    # merge all treatments to TREATMENT
-    treatments_pooled_bam = pool_bams_of_samples(@treatments,
-                                                File.join(Dir.getwd,output_base,@treatments_name),
-                                                conf)
-    return false unless treatments_pooled_bam
-    bams_to_clean << treatments_pooled_bam
-    treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
-    treatment.analysis_ready_bam=treatments_pooled_bam
-    # split TREAMENT to 2 pseudo replicates, peak each against CONTROL
-    pooled_reps = treatment.create_pseudo_replicates(2,File.expand_path(output_base),conf)
-    if pooled_reps && 2 == pooled_reps.size
-      to_idr = []
-      pooled_reps.each do |pr|
-        bams_to_clean << pr.analysis_ready_bam
-        p = Macs.new("idr",[pr],[control],@opts)
-        to_idr << p
-        peakers_mutex.synchronize { peakers << p }
-      end
-      idrs_to_do_mutex.synchronize { pooled_pseudo_replicates << to_idr }
-    else
-      on_error.call("Failed to make pseudo replicates for #{treatment}")
-      return false
-    end
+    idrs[:pooled_pseudo_replicates] = add_self_replicate_peakers([treatment],control,output_base,
+                                                                 conf,peakers,on_error)
+    return false unless idrs[:pooled_pseudo_replicates]
 
     merged_vs_merged_peaker = Macs.new("idr",[treatment],[control],@opts)
     peakers << merged_vs_merged_peaker
@@ -103,61 +73,116 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
         true
       end
     end
-
     return false if problem
+
+    #TODO do we want to run a stand alone spp to get those NSC and RSC values Pat wanted?
 
     # Do we need/want to save the intermediate bams?
-    bams_to_clean.each do |b|
-      File.delete(b.path) if File.exists?(b.path)
-    end
-
-    #TODO clean this up
-    idr_results = []
-    idr_results_mutex = Mutex.new()
-
-    idrs_to_do = original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
-    problem = !Optical.threader(idrs_to_do.each,on_error) do |idr|
-      if 0 == idr[0].num_peaks || 0 == idr[1].num_peaks
-        puts "No peaks! #{idr[0]} had #{idr[0].num_peaks}, #{idr[1]} had #{idr[1].num_peaks}"
-        idr_results_mutex.synchronize { idr_results << "" }
-      else
-        out = File.join(output_base, "#{idr[0].safe_name}_AND_#{idr[1].safe_name}")
-        cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
-          %W(Rscript #{conf.idr_script} #{idr[0].encode_peak_path} #{idr[1].encode_peak_path}) +
-          %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
-        puts cmd.join(" ") if conf.verbose
-        unless system(*cmd)
-          #this can fail "safely", we'll just say in such a case there are no results
-          out = ""
+    (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates] + [Idr.new([merged_vs_merged_peaker],nil)]).flatten.each do |idr|
+      idr.peak_pair.each do |p|
+        (p.treatments + p.controls).each do |s|
+          File.delete(s.analysis_ready_bam.path) if File.exists?(s.analysis_ready_bam.path)
         end
-        idr_results_mutex.synchronize { idr_results << out }
       end
-      true
     end
 
-    return false if problem
+    return false unless run_idr!(idrs,output_base,conf,on_error)
 
-    types_lines = {}
-    #plot each of the idr_rsults
-    #original_replicates + self_pseudo_replicates + pooled_pseudo_replicates
-    {:originals => {offset:0, data:original_replicates},
-     :self_pseudo_replicates => {offset:original_replicates.size, data:self_pseudo_replicates},
-     :pooled_pseudo_replicates => {offset:(original_replicates.size+self_pseudo_replicates.size),data:pooled_pseudo_replicates}}.each do |type,settings|
+    plot_idrs!(idrs,output_base,conf,on_error)
+
+    summarize_idr_peak_counts(idrs,output_base)
+
+    return false unless create_final_peak_files(merged_vs_merged_peaker,
+                                                output_base,conf,on_error)
+
+    return @errors.empty?
+  end
+
+  private
+
+  def create_final_peak_files(peaker,output_base,conf,on_error)
+    mutex = Mutex.new()
+    @final_peak_paths = {}
+    types_counts = {"conservative" => @conservative_count, "optimal" => @optimal_count}
+    return Optical.threader(types_counts,on_error) do |type,count|
+      puts "Getting #{type} #{count} of final peaks from #{peaker}"
+      out = "final_#{type}_#{File.basename(peaker.encode_peak_path)}"
+      mutex.synchronize { @final_peak_paths[type] = File.join(output_base,out) }
+      cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:2, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
+        ["sort -k8 -n -r #{File.basename(peaker.encode_peak_path)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        on_error.call("Failure in creating final #{type} for #{safe_name}")
+        false
+      else
+        true
+      end
+    end
+  end
+
+  def summarize_idr_peak_counts(idrs,output_base)
+    File.open( File.join(output_base,"idr_summary.txt"),"w" ) do |out|
+      out.puts %W(type idr1_name idr1_peaks idr2_name idr2_peaks ratio).join("\t")
+      idrs.each do |type,idr_set|
+        idr_set.combination(2).each do |set_comparison|
+          line = [type]
+          set_comparison.each do |sc|
+            name = sc.peak_pair.map {|pp| pp.to_s.sub(/^idr of /,'').sub(/ vs #{@controls_name}_pooled$/,'')}
+            #name = "#{sc.peak_pair[0].to_s.sub(/ vs #{@controls_name}_pooled$/,'')} and #{sc.peak_pair[1].to_s.sub(/ vs #{@controls_name}_pooled$/,'')}"
+            line += [name.join(" overlapped "), sc.passing_peaks]
+          end
+          if 0 == set_comparison[0].passing_peaks || 0 == set_comparison[1].passing_peaks
+            line << 0
+          else
+            line << format("%.2f",set_comparison[0].passing_peaks.to_f/set_comparison[1].passing_peaks.to_f)
+          end
+          out.puts line.join("\t")
+        end
+        lines = idr_set.map {|i| i.passing_peaks}
+        non_zeros = lines.select {|x| x>0}
+        puts "#{type} had a max of #{lines.max} peaks under the #{@idr_threshold} threshold from #{non_zeros.size}"
+        if non_zeros.size != lines.size
+          puts "WARNING: #{type} had #{lines.size-non_zeros.size} with 0 passing overlaps"
+        end
+        non_zeros.combination(2) do |pair|
+          pair.sort!
+          if pair[1]/pair[0].to_f > 2.0
+            puts "WARNING: #{type} had some passing not within the 2x (#{pair.join(", ")})"
+          end
+        end
+      end
+      @conservative_count = idrs[:original].map {|i| i.passing_peaks}.max
+      @optimal_count = idrs[:pooled_pseudo_replicates].map {|i| i.passing_peaks}.max
+      line = ["final", "conservative (max originals)", @conservative_count, "(original) optimal (pooled pseudo)", @optimal_count]
+      if 0 == @conservative_count || 0 == @optimal_count
+        line << 0
+      else
+        line << format("%.2f",@conservative_count.to_f/@optimal_count.to_f)
+      end
+      out.puts line.join("\t")
+      c = [@conservative_count, @optimal_count].sort
+      if c[1]/c[0].to_f > 2.0
+        puts "WARNING: The conservative count & optimal count not within 2x #{c.join(", ")})"
+      end
+      @optimal_count = c.max
+    end
+  end
+
+  def plot_idrs!(idrs,output_base,conf,on_error)
+    script = "$11 <= #{@idr_threshold} {count++} END{print count}"
+    idrs.each do |type,idr_set|
       passed = []
-      lines = []
-      settings[:data].size.times do |i|
-        if idr_results[i+settings[:offset]] != ""
-          passed << File.basename(idr_results[i+settings[:offset]])
-          script = "$11 <= #{@idr_threshold} {count++} END{print count}"
-          cmd = %W(awk #{script} #{idr_results[i+settings[:offset]]}-overlapped-peaks.txt)
+      idr_set.each do |i|
+        if i.results != ""
+          passed << File.basename(i.results)
+          cmd = %W(awk #{script} #{i.results}-overlapped-peaks.txt)
           pipe = IO.popen(cmd)
-          lines << pipe.readlines.last.chomp.to_i
+          i.passing_peaks = pipe.readlines.last.chomp.to_i
           pipe.close
         else
-          lines << 0
+          idr.passing_peaks = 0
         end
       end
-      types_lines[type] = lines
       if passed.size > 0
         out = "#{type}_"
         cmd = conf.cluster_cmd_prefix(wd:output_base, free:2, max:8, sync:true, name:"idr_plot_#{type}_#{safe_name()}") +
@@ -167,48 +192,52 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
         true
       end
      end
-
-    types_lines.each do |type,lines|
-      non_zeros = lines.select {|x| x>0}
-      puts "#{type} had a max of #{lines.max} peaks under the #{@idr_threshold} threshold from #{non_zeros.size}"
-      if non_zeros.size != lines.size
-        puts "WARNING: #{type} had #{lines.size-non_zeros.size} with 0 passing overlaps"
-      end
-      non_zeros.combination(2) do |pair|
-        pair.sort!
-        if pair[1]/pair[0].to_f > 2.0
-          puts "WARNING: #{type} had some passing not within the 2x (#{pair.join(", ")})"
-        end
-      end
-    end
-    conservative_count = types_lines[:originals].max
-    optimal_count = types_lines[:pooled_pseudo_replicates].max
-    c = [conservative_count, optimal_count].sort
-    if c[1]/c[0].to_f > 2.0
-      puts "WARNING: The conservative count & optimal count not within 2x #{c.join(", ")})"
-    end
-    optimal_count = c.max
-
-    types_counts = {"conservative" => conservative_count, "optimal" => optimal_count}
-    problem = !Optical.threader(types_counts,on_error) do |type,count|
-      puts "Getting #{type} #{count} of final peaks from #{merged_vs_merged_peaker}"
-      out = "final_#{type}_#{File.basename(merged_vs_merged_peaker.encode_peak_path)}"
-      cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:2, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
-        ["sort -k8 -n -r #{File.basename(merged_vs_merged_peaker.encode_peak_path)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        on_error.call("Failure in creating final #{type} for #{safe_name}")
-        false
-      else
-        true
-      end
-    end
-    return false if problem
-
-    return @errors.empty?
   end
 
-  private
+  def run_idr!(idrs,output_base,conf,on_error)
+    Optical.threader(idrs.values.flatten(1),on_error) do |idr|
+      if 0 == idr.peak_pair[0].num_peaks || 0 == idr.peak_pair[1].num_peaks
+        idr.results = ""
+      else
+        out = File.join(output_base, "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}")
+        cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
+          %W(Rscript #{conf.idr_script} #{idr.peak_pair[0].encode_peak_path} #{idr.peak_pair[1].encode_peak_path}) +
+          %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
+        puts cmd.join(" ") if conf.verbose
+        unless system(*cmd)
+          #this can fail "safely", we'll just say in such a case there are no results
+          out = ""
+        end
+        idr.results = out
+      end
+      true
+    end
+  end
+
+  def add_self_replicate_peakers(treatments,control,output_base,conf,peakers,on_error)
+    mutex = Mutex.new()
+    peakers_mutex = Mutex.new()
+    idr_set = []
+    # split each treatment to 2 pseudo replicates, peak each against CONTROL
+    problem = !Optical.threader(treatments,on_error) do |t|
+      pseudo_replicates = t.create_pseudo_replicates(2,File.expand_path(output_base),conf)
+      if pseudo_replicates && 2 == pseudo_replicates.size
+        to_idr = []
+        pseudo_replicates.each do |pr|
+          p = Macs.new("idr",[pr],[control],@opts)
+          to_idr << p
+          peakers_mutex.synchronize { peakers << p }
+        end
+        mutex.synchronize { idr_set << Idr.new(to_idr,nil) }
+      else
+        on_error.call("Failed to make pseudo replicates for #{t}")
+        false
+      end # enough PRs
+    end #thread each treatment
+    return nil if problem
+    return idr_set
+  end
+
   def pool_bams_of_samples(samples,output_base,conf)
     pooled_path = "#{output_base}_pooled.bam"
     if 1 == samples.size then

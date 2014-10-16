@@ -16,7 +16,7 @@ class Optical::PeakCaller
     klass.new(name,treatments,controls,opts)
   end
 
-  attr_reader :cmd_args, :name
+  attr_reader :cmd_args, :name, :treatments, :controls
 
   def initialize(name,treatments,controls,opts)
     @name = name
