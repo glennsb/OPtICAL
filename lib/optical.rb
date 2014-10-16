@@ -2,6 +2,7 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+require "shellwords"
 require "optical/version"
 require "optical/configuration"
 require "optical/library"
