@@ -10,6 +10,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     super
     @idr_args = (opts[:idr_args] || "0.3 F p.value hg19").split(/ /)
     @idr_threshold = (opts[:idr_threshold] || 0.01).to_f
+    @individual_peaks_limit = (opts[:individual_peaks_limit] || 100000)
     @opts = opts
     @treatments_name = (@opts.delete(:treatment_name) || @treatments.first.safe_name).tr(" ",'_').tr("/","_")
     @controls_name = (@opts.delete(:control_name) || @controls.first.safe_name).tr(" ",'_').tr("/","_")
@@ -41,6 +42,7 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     peakers = @treatments.map do |t|
       Macs.new("idr",[t],[control],@opts)
     end
+    individual_peakers = peakers.dup
     idrs = {}
     peakers.combination(2).each do |peak_pair|
       idrs[:original] ||= []
@@ -69,6 +71,9 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
         on_error.call(p.error())
         false
       else
+        if individual_peakers.include?(p)
+          p.trim_peaks!(@individual_peaks_limit,conf)
+        end
         p.num_peaks #we get it here once, to avoid thread errors later
         true
       end
