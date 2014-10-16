@@ -98,6 +98,14 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     return @errors.empty?
   end
 
+  def conservative_peak_path()
+    @final_peak_paths["conservative"]
+  end
+
+  def optimal_peak_path()
+    @final_peak_paths["optimal"]
+  end
+
   private
 
   def create_final_peak_files(peaker,output_base,conf,on_error)
