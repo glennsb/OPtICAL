@@ -34,6 +34,23 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     return false
   end
 
+  def trim_peaks!(limit,conf)
+    return unless @encode_peak_path && File.exists?(@encode_peak_path)
+    return unless limit > 0
+    base = File.dirname(@encode_peak_path)
+    out = File.basename(@encode_peak_path)+"_#{limit}_limited.tmp"
+    cmd = conf.cluster_cmd_prefix(wd:base, free:1, max:2, sync:true, name:"sort_peaks_#{safe_name()}") +
+      ["sort -k8 -n -r #{File.basename(@encode_peak_path).shellescape} | head -n #{limit} | sort -k1,1 -k2,2n -k3,3n > #{out.shellescape}"]
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failure in limiting #{@encode_peak_path} to #{limit} peaks"
+      return false
+    end
+    File.delete(@encode_peak_path)
+    File.rename(File.join(File.dirname(@encode_peak_path),out),@encode_peak_path)
+    return true
+  end
+
   def num_peaks()
     unless @num_peaks
       @num_peaks = 0

@@ -75,8 +75,6 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     end
     return false if problem
 
-    #TODO do we want to run a stand alone spp to get those NSC and RSC values Pat wanted?
-
     # Do we need/want to save the intermediate bams?
     (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates] + [Idr.new([merged_vs_merged_peaker],nil)]).flatten.each do |idr|
       idr.peak_pair.each do |p|
