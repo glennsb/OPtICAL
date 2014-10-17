@@ -45,8 +45,8 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
     individual_peakers = peakers.dup
     idrs = {}
     peakers.combination(2).each do |peak_pair|
-      idrs[:original] ||= []
-      idrs[:original] << Idr.new(peak_pair,nil)
+      idrs[:individual] ||= []
+      idrs[:individual] << Idr.new(peak_pair,nil)
     end
 
     errs_mutex = Mutex.new()
@@ -162,9 +162,9 @@ class Optical::PeakCaller::MacsIdr < Optical::PeakCaller
           end
         end
       end
-      @conservative_count = idrs[:original].map {|i| i.passing_peaks}.max
+      @conservative_count = idrs[:individual].map {|i| i.passing_peaks}.max
       @optimal_count = idrs[:pooled_pseudo_replicates].map {|i| i.passing_peaks}.max
-      line = ["final", "conservative (max originals)", @conservative_count, "(original) optimal (pooled pseudo)", @optimal_count]
+      line = ["final", "conservative (max individuals)", @conservative_count, "(original) optimal (pooled pseudo)", @optimal_count]
       if 0 == @conservative_count || 0 == @optimal_count
         line << 0
       else
