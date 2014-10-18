@@ -48,6 +48,7 @@ class Optical::Sample
       path = "#{outname}_#{rep}.bam"
       b = Optical::Bam.new(path,has_paired?())
       b.fragment_size = analysis_ready_bam.fragment_size()
+      b.dupes_removed = analysis_ready_bam.dupes_removed
       rep = Optical::Sample.new("#{rep_base_name}_#{rep}",[])
       rep.analysis_ready_bam=b
       replicate_samples << rep

@@ -6,7 +6,7 @@ class Optical::Bam
 
   attr_reader :path
 
-  attr_accessor :fragment_size, :num_alignments
+  attr_accessor :fragment_size, :num_alignments, :dupes_removed
 
   def initialize(path,paired)
     @path = path

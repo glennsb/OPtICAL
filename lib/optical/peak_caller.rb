@@ -39,6 +39,34 @@ class Optical::PeakCaller
     return false
   end
 
+  def trim_peaks!(limit,conf)
+    return unless peak_path() && File.exists?(peak_path())
+    return unless limit > 0
+    base = File.dirname(peak_path())
+    out = File.basename(peak_path())+"_#{limit}_limited.tmp"
+    cmd = conf.cluster_cmd_prefix(wd:base, free:1, max:2, sync:true, name:"sort_peaks_#{safe_name()}") +
+      ["sort -k8 -n -r #{File.basename(peak_path()).shellescape} | head -n #{limit} | sort -k1,1 -k2,2n -k3,3n > #{out.shellescape}"]
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failure in limiting #{peak_path()} to #{limit} peaks"
+      return false
+    end
+    File.delete(peak_path())
+    File.rename(File.join(File.dirname(peak_path()),out),peak_path())
+    return true
+  end
+
+
+  def num_peaks()
+    unless @num_peaks
+      @num_peaks = 0
+      IO.foreach(peak_path()) do
+        @num_peaks+=1
+      end
+    end
+    return @num_peaks
+  end
+
   def treatment_samples
     return @treatments.to_enum unless block_given?
     @treatments.each do |p|
@@ -59,5 +87,9 @@ class Optical::PeakCaller
 
   def error()
     @errors.join("\n")
+  end
+
+  def has_errors?()
+    @errors.size > 0
   end
 end

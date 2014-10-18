@@ -241,6 +241,7 @@ class Optical::ChipAnalysis
 
     sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
     sample.analysis_ready_bam.fragment_size = @conf.default_fragment_size
+    sample.analysis_ready_bam.dupes_removed = @conf.remove_duplicates
     if ! File.exists?(sample.analysis_ready_bam.path)
       add_error("Final bam for #{sample.safe_name} does not exist at #{sample.analysis_ready_bam}")
       return false

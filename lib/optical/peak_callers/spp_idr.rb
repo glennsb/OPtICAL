@@ -4,15 +4,15 @@
 
 require 'optical/peak_callers/idr'
 
-class Optical::PeakCaller::MacsIdr < Optical::PeakCaller::Idr
+class Optical::PeakCaller::SppIdr < Optical::PeakCaller::Idr
 
   private
 
   def score_sort_column()
-    8
+    7
   end
 
   def peak_caller()
-    Macs
+    Spp
   end
 end
