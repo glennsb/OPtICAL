@@ -29,7 +29,8 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       return model_to_pdf(full_output_base,conf) &&
         strip_name_prefix_from_peak_names(conf) &&
         add_track_header_to_file(@peak_bed_path,conf) &&
-        (@encode_peak_vs_gene_path = find_genes_near_peaks(@encode_peak_path,full_output_base,conf))
+        (@encode_peak_vs_gene_path = find_genes_near_peaks(@encode_peak_path,full_output_base,conf)) &&
+        calculate_cross_correlation(output_base,conf)
     end
     return false
   end

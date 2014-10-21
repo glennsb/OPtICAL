@@ -39,6 +39,25 @@ class Optical::PeakCaller
     return false
   end
 
+  def calculate_cross_correlation(output_base,conf)
+    return true if File.exists?( File.basename(@treatments[0].analysis_ready_bam.path,"bam") + "pdf" )
+    spp = if @treatments[0].analysis_ready_bam.dupes_removed
+            "run_spp_nodups.R"
+          else
+            "run_spp.R"
+          end
+    cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"crosscorr_#{safe_name()}") +
+      %W(#{spp} -c=#{@treatments[0].analysis_ready_bam.path.shellescape} -rf -savp -out=strand_cross_correlation.txt)
+    unless conf.skip_peak_calling
+      puts cmd.join(" ") if conf.verbose
+      unless system(*cmd)
+        @errors << "Failed to execute xcorspp for #{self}: #{$?.exitstatus}"
+        return false
+      end
+    end
+    return true
+  end
+
   def trim_peaks!(limit,conf)
     return unless peak_path() && File.exists?(peak_path())
     return unless limit > 0
