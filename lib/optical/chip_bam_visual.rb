@@ -52,6 +52,7 @@ class Optical::ChipBamVisual
         return false
       end
     end
+    File.delete("igv.log") if File.exists?("igv.log")
     return out_path
   end
 

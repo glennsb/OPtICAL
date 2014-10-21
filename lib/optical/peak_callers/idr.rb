@@ -39,6 +39,14 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
                                                 conf)
     return false unless treatment.analysis_ready_bam
 
+    # We probably want to visualize this merged bams
+    vis_output_base = File.join(Optical::ChipAnalysis::DIRS[:vis],name)
+    Dir.mkdir(vis_output_base) unless Dir.exists?(vis_output_base)
+    @control_vis = Optical::ChipBamVisual.new(vis_output_base,control.analysis_ready_bam,conf)
+    @control_vis.create_files()
+    @treatment_vis = Optical::ChipBamVisual.new(vis_output_base,treatment.analysis_ready_bam,conf)
+    @treatment_vis.create_files()
+
     peakers = @treatments.map do |t|
       peak_caller().new("idr",[t],[control],@opts)
     end
