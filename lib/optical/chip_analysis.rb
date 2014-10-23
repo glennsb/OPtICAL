@@ -25,10 +25,14 @@ class Optical::ChipAnalysis
   def run()
     return setup_directories() &&
       prep_samples_for_peak_calling() &&
-      call_peaks() && @errs.empty?
+      call_peaks() &&
+      create_final_report() && @errs.empty?
   end
 
   private
+
+  def create_final_report()
+  end
 
   def setup_directories
     Dir.chdir(@conf.output_base)
