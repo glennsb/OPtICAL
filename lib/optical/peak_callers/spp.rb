@@ -39,12 +39,10 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
     cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"#{safe_name()}") +
       %W(gunzip #{File.basename(region_peak_path).shellescape})
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to uncompress region peaks for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to uncompress region peaks for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end
@@ -59,12 +57,10 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
       %W(#{spp} -c=#{@treatments[0].analysis_ready_bam.path.shellescape}
          -i=#{@controls[0].analysis_ready_bam.path.shellescape} -odir=. -savr -savp -rf) + @cmd_args
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to execute spp for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to execute spp for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end

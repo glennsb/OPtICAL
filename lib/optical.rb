@@ -12,13 +12,14 @@ require "optical/filters"
 require "optical/chip_bam_visual"
 require "optical/bam"
 require "optical/peak_caller"
+require "optical/checkpointable"
 
 module Optical
-  def self.threader(enum,on_error,&block)
+  def self.threader(enum,on_error)
     workers = []
     enum.each do |item|
       workers << Thread.new do
-        block.call(item)
+        yield item
       end
     end
     exits = []

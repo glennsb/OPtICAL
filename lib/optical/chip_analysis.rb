@@ -57,47 +57,42 @@ class Optical::ChipAnalysis
   end
 
   def do_find_peaks(p)
-    puts "Preparing peak finding for #{p}" if @conf.verbose
-    outbase = get_sample_dir_in_stage(p.safe_name,:peak,@conf.skip_peak_calling)
-    unless outbase
-      add_error("Failed to get output base dir for peak files for #{p}")
-      return false
+    p.checkpointed(get_sample_dir_in_stage(p.safe_name,:peak,true)) do |outbase,o|
+      unless o.find_peaks(outbase,@conf)
+        add_error("Peak finding error: #{o.error()}")
+        false
+      else
+        true
+      end
     end
-    unless p.find_peaks(outbase,@conf)
-      add_error("Peak finding error: #{p.error()}")
-      return false
+  end
+
+  def fastqc_lib(outbase,lib,sample)
+    lib.fastq_paths.each do |fastq|
+      cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"fastqc_#{sample.safe_name}") +
+        %W(fastqc --extract -q -o #{outbase} #{fastq})
+      puts cmd.join(" ") if @conf.verbose
+      unless system(*cmd)
+        add_error("Failure in fastqc of #{fastq} for #{sample.name} #{$?.exitstatus}")
+        return false
+      else
+        fastqc_base = "#{File.join(@conf.output_base,outbase, File.basename(File.basename(fastq,".gz"),".fastq"))}_fastqc"
+        lib.add_fastqc_path("#{fastqc_base}.html")
+        begin
+          File.delete("#{fastqc_base}.zip")
+        rescue
+        end
+      end
     end
     return true
   end
 
   def fastqc_for_sample(sample)
-    return true if @conf.skip_fastqc
-    puts "Fastqc for #{sample.name}"
-    outbase = File.join(DIRS[:qc],sample.safe_name)
-    Dir.mkdir(outbase) unless File.exists?(outbase)
-    sample.libraries.each do |lib|
-      lib.fastq_paths.each do |fastq|
-        cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"fastqc_#{sample.safe_name}") +
-          %W(fastqc --extract -q -o #{outbase} #{fastq})
-        puts cmd.join(" ") if @conf.verbose
-        case system(*cmd)
-          when true
-            fastqc_base = "#{File.join(@conf.output_base,outbase, File.basename(File.basename(fastq,".gz"),".fastq"))}_fastqc"
-            lib.add_fastqc_path("#{fastqc_base}.html")
-            begin
-              File.delete("#{fastqc_base}.zip")
-            rescue
-            end
-          when false
-            add_error("Failure in fastqc of #{fastq} for #{sample.name} #{$?.exitstatus}")
-            return false
-          when nil
-            add_error("Unable to execute fastqc #{$?.exitstatus}")
-            return false
-        end
-      end #libs.fastqs
-    end #sample.libs
-    return true
+    qc_dir = File.join(DIRS[:qc],sample.safe_name)
+    Dir.mkdir(qc_dir) unless File.exists?(qc_dir)
+    sample.checkpointed(qc_dir) do |dir,s|
+      !s.libraries.map { |lib| fastqc_lib(dir,lib,s) }.include?(false)
+    end
   end
 
   def get_sample_dir_in_stage(safe_name,stage,skip_check)
@@ -111,37 +106,33 @@ class Optical::ChipAnalysis
   end
 
   def prepare_visualization_for_sample(sample)
-    puts "Preparing visualization files for #{sample.name}'s bam" if @conf.verbose
-    outbase = get_sample_dir_in_stage(sample.safe_name,:vis,@conf.skip_visualization)
-    unless outbase
-      add_error("Failed to get output base dir for visualiation files")
-      return false
+    sample.checkpointed(get_sample_dir_in_stage(sample.safe_name,:vis,true)) do |out,s|
+      puts "Preparing visualization files for #{s.name}'s bam (#{s.analysis_ready_bam})" #if @conf.verbose
+      s.bam_visual = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,@conf)
+      unless s.bam_visual.create_files()
+        add_error("Error in creating visual files: #{s.bam_visual.error()}")
+        false
+      else
+        true
+      end
     end
-    sample.bam_visual = Optical::ChipBamVisual.new(outbase,sample.analysis_ready_bam,@conf)
-    unless sample.bam_visual.create_files()
-      add_error("Error in creating visual files: #{sample.bam_visual.error()}")
-      return false
-    end
-    return true
   end
 
   def prepare_bam_for_sample(sample)
-    puts "Preparing bam #{sample.name}" if @conf.verbose
-    outbase = get_sample_dir_in_stage(sample.safe_name,:align,@conf.skip_alignment)
-    return false unless outbase
-
-    return false unless align_libs(sample.libraries,outbase,sample.safe_name)
-
-    return false unless filter_libs(sample.libraries,outbase,sample.safe_name)
-
-    return false unless finalize_libraries_for_sample(sample,outbase)
-
-    clean_intermediate_bams_for_sample(sample) unless @conf.skip_alignment
-
-    if @conf.verbose
-      puts "#{sample} aligned to #{sample.analysis_ready_bam} & has #{sample.libraries.map {|l| l.qc_path}.join(", ")} alignment qc reports"
+    sample.checkpointed(get_sample_dir_in_stage(sample.safe_name,:align,true)) do |outbase,s|
+      puts "Preparing bam #{s.name}" if @conf.verbose
+      if (align_libs(s.libraries,outbase,s.safe_name) &&
+          filter_libs(s.libraries,outbase,s.safe_name) &&
+          finalize_libraries_for_sample(s,outbase) &&
+          clean_intermediate_bams_for_sample(s) ) then
+        if @conf.verbose
+          puts "#{s} aligned to #{s.analysis_ready_bam} & has #{s.libraries.map {|l| l.qc_path}.join(", ")} alignment qc reports"
+        end
+        true
+      else
+        false
+      end
     end
-    return true
   end
 
   def clean_intermediate_bams_for_sample(sample)
@@ -155,7 +146,6 @@ class Optical::ChipAnalysis
   end
 
   def filter_libs(libs,outbase,sample_safe_name)
-    return true if @conf.skip_alignment
     libs.each do |lib|
       filt_bam = lib.aligned_path.sub(/_(\d+\.bam)/,'_filtered_\1')
       filter = @conf.alignment_filter.new(lib,sample_safe_name,@conf)
@@ -188,55 +178,49 @@ class Optical::ChipAnalysis
            COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
            sample.libraries.map {|l| "INPUT=#{l.filtered_path}" }
     end
-    unless @conf.skip_alignment
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      add_error("Failure in mark dupes/merge of sample #{sample.safe_name} #{$?.exitstatus}")
+      return false
+    end
+
+    # only get the first in pairs (83,99)
+    if sample.has_paired?
+      cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
+        %W(/bin/bash -o pipefail -o errexit -c)
+      filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
+        "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
+      cmd << "\"#{filt}\""
       puts cmd.join(" ") if @conf.verbose
       unless system(*cmd)
-        add_error("Failure in mark dupes/merge of sample #{sample.safe_name} #{$?.exitstatus}")
+        add_error("Failure removing second pairs of sample #{sample.safe_name} #{$?.exitstatus}")
         return false
       end
-
-      # only get the first in pairs (83,99)
-      if sample.has_paired?
-        cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
-          %W(/bin/bash -o pipefail -o errexit -c)
-        filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
-          "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
-        cmd << "\"#{filt}\""
-        puts cmd.join(" ") if @conf.verbose
-        unless system(*cmd)
-          add_error("Failure removing second pairs of sample #{sample.safe_name} #{$?.exitstatus}")
-          return false
-        end
-        File.delete(tmp_bam) if File.exists?(tmp_bam)
-      else
-        File.rename(tmp_bam,final_bam)
-      end
-
-      if @conf.alignment_masking_bed_path
-        # We can do it with bamutils filter -excludedbed nostrand from the ngsutils package
-        input_path = final_bam.dup
-        final_bam.sub!(/\.bam/,"_masked.bam")
-        cmd = @conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"mask_#{sample.safe_name}") +
-          %W(bamutils filter #{input_path} #{final_bam} -excludebed #{@conf.alignment_masking_bed_path} nostrand)
-        puts cmd.join(" ") if @conf.verbose
-        unless system(*cmd)
-          add_error("Failure masking #{sample.safe_name} #{$?.exitstatus}")
-          return false
-        end
-        File.delete(input_path) if File.exists?(input_path)
-      end
-
-      cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
-        %W(samtools index #{final_bam})
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
-        return false
-      end
+      File.delete(tmp_bam) if File.exists?(tmp_bam)
     else
-      if @conf.alignment_masking_bed_path
-        final_bam.sub!(/\.bam/,"_masked.bam")
+      File.rename(tmp_bam,final_bam)
+    end
+
+    if @conf.alignment_masking_bed_path
+      # We can do it with bamutils filter -excludedbed nostrand from the ngsutils package
+      input_path = final_bam.dup
+      final_bam.sub!(/\.bam/,"_masked.bam")
+      cmd = @conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"mask_#{sample.safe_name}") +
+        %W(bamutils filter #{input_path} #{final_bam} -excludebed #{@conf.alignment_masking_bed_path} nostrand)
+      puts cmd.join(" ") if @conf.verbose
+      unless system(*cmd)
+        add_error("Failure masking #{sample.safe_name} #{$?.exitstatus}")
+        return false
       end
+      File.delete(input_path) if File.exists?(input_path)
+    end
+
+    cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"index_#{sample.safe_name}") +
+      %W(samtools index #{final_bam})
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      add_error("Failure index of sample #{sample.safe_name} #{$?.exitstatus}")
+      return false
     end
 
     sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
@@ -275,12 +259,10 @@ class Optical::ChipAnalysis
     bwa_cmd += "| samtools view -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
-    unless @conf.skip_alignment
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
+      return false
     end
     lib.aligned_path = File.join(@conf.output_base,lib_bam)
     return true
@@ -308,12 +290,10 @@ class Optical::ChipAnalysis
     qc_cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"align_qc_#{sample_safe_name}") +
       %W(/bin/bash -o pipefail -o errexit -c)
     qc_cmd += ["'library_complexity.sh #{endness} #{qc_bam}' > #{qc_file}"]
-    unless @conf.skip_alignment
-      puts qc_cmd.join(" ") if @conf.verbose
-      unless system(*qc_cmd)
-        add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
-        return false
-      end
+    puts qc_cmd.join(" ") if @conf.verbose
+    unless system(*qc_cmd)
+      add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
+      return false
     end
     lib.qc_path = qc_file
     return true

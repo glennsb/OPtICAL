@@ -47,12 +47,10 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       %W(find_nearby_genes.pl #{in_path} #{conf.ucsc_refflat_path} #{output}
          #{conf.gene_peak_neighbor_distance} 1,2,3,8)
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to fine genes near peaks for #{self}: #{$?.exitstatus}"
-        return nil
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to fine genes near peaks for #{self}: #{$?.exitstatus}"
+      return nil
     end
     return output
   end
@@ -65,12 +63,10 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
     cmd = conf.cluster_cmd_prefix(free:1, max:1, sync:true, name:"trackname_#{safe_name()}") +
       %W(sed -i '1i#{header.chomp}' #{path})
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to add track header for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to add track header for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end
@@ -80,12 +76,10 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
       %W(sed -i '/^chr/ s/#{safe_name()}_//') +
       [@peak_bed_path, @encode_peak_path, @peak_xls_path, @summit_bed_path]
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to strip peak name prefix of macs for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to strip peak name prefix of macs for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end
@@ -95,15 +89,13 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
     cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4, sync:true, name:"r_#{safe_name()}") +
       %W(Rscript #{rscript})
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to make pdf of macs for #{self}: #{$?.exitstatus}"
-        return false
-      end
-      rscript = File.join( File.dirname(output_base), rscript )
-      File.delete(rscript) if File.exists?(rscript)
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to make pdf of macs for #{self}: #{$?.exitstatus}"
+      return false
     end
+    rscript = File.join( File.dirname(output_base), rscript )
+    File.delete(rscript) if File.exists?(rscript)
     @model_pdf_path = output_base + MACS_OUTPUT_SUFFICES[:model_pdf]
     return true
   end
@@ -114,12 +106,10 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
          -c #{@controls[0].analysis_ready_bam.path} -n #{safe_name()}
          --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
 
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end

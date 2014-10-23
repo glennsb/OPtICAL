@@ -18,7 +18,7 @@ class Optical::ChipBamVisual
   def create_files()
     @errors = []
     unless Dir.exists?(@output_base)
-      @errors << "Output directory #{o@utput_base} does not exist"
+      @errors << "Output directory #{@utput_base} does not exist"
       return false
     end
     unless File.exists?(@bam.path)
@@ -38,19 +38,17 @@ class Optical::ChipBamVisual
   end
 
   def wig_to_tdf(wig_path)
-    if !@conf.skip_visualization && (nil == wig_path || !File.exists?(wig_path))
+    if (nil == wig_path || !File.exists?(wig_path))
       @errors << "The given wig #{wig_path} doesn't exist"
       return false
     end
     out_path = wig_path.sub(/\.wig$/,'.tdf')
     cmd = @conf.cluster_cmd_prefix(free:6, max:12, sync:true, name:"wig_tdf_#{File.basename(@bam.path)}") +
       %W(igvtools toTDF #{wig_path} #{out_path} #{@conf.igv_reference})
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure wig to totdf for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure wig to totdf for #{@bam} #{$?.exitstatus}"
+      return false
     end
     File.delete("igv.log") if File.exists?("igv.log")
     return out_path
@@ -64,14 +62,12 @@ class Optical::ChipBamVisual
 
   def compress_outputs()
     files = [@raw_wig_path, @raw_bedgraph_path, @normalized_bedgraph_path, @normalized_wig_path]
-    unless @conf.skip_visualization
-      cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"compress_viz_#{File.basename(@bam.path)}") +
-        %W(gzip) + files
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure compressing visuals for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    cmd = @conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"compress_viz_#{File.basename(@bam.path)}") +
+      %W(gzip) + files
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure compressing visuals for #{@bam} #{$?.exitstatus}"
+      return false
     end
     files.each do |f|
       f = f += ".gz"
@@ -80,57 +76,51 @@ class Optical::ChipBamVisual
   end
 
   def normalize_wig(out_prefix)
-    if !@conf.skip_visualization && (nil == @raw_wig_path || !File.exists?(@raw_wig_path))
+    if (nil == @raw_wig_path || !File.exists?(@raw_wig_path))
       @errors << "Raw wig file doesn't exist, can't normalize for #{@bam}"
       return false
     end
     out_path = "#{out_prefix}_normalized.wig"
     cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_wig_#{File.basename(@bam.path)}") +
       %W(optical normalizeWig -w #{@raw_wig_path} -c #{@bam.num_alignments} -o #{out_path})
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure normalizing wig for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure normalizing wig for #{@bam} #{$?.exitstatus}"
+      return false
     end
     @normalized_wig_path = out_path
     return true
   end
 
   def normalize_bedgraph(out_prefix)
-    if !@conf.skip_visualization && @raw_bedgraph_path && !File.exists?(@raw_bedgraph_path)
+    if @raw_bedgraph_path && !File.exists?(@raw_bedgraph_path)
       @errors << "Raw bedgraph doesn't exist, can't normalize for #{@bam}"
       return false
     end
     out_path = "#{out_prefix}_normalized.bedgraph"
     cmd = @conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"normalize_bedgraph_#{File.basename(@bam.path)}") +
       %W(optical normalizeBedgraph -b #{@raw_bedgraph_path} -c #{@bam.num_alignments} -o #{out_path})
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure normalizing bedgraph for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure normalizing bedgraph for #{@bam} #{$?.exitstatus}"
+      return false
     end
     @normalized_bedgraph_path = out_path
     return true
   end
 
   def convert_bed_to_wig(out_prefix)
-    if !@conf.skip_visualization && !File.exists?(@raw_bedgraph_path)
+    if !File.exists?(@raw_bedgraph_path)
       @errors << "Raw bedgraph doesn't exist, can't convert to wig for #{@bam}"
       return false
     end
     out_path = @raw_bedgraph_path.sub(/bedgraph$/,'wig')
     cmd = @conf.cluster_cmd_prefix(free:1, max:4, sync:true, name:"wig_#{File.basename(@bam.path)}") +
       %W(optical bedgraphToWig -b #{@raw_bedgraph_path} -c #{@color} -s #{@conf.wig_step_size} -o #{out_path})
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure creating wig for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure creating wig for #{@bam} #{$?.exitstatus}"
+      return false
     end
     @raw_wig_path = out_path
     return true
@@ -146,12 +136,10 @@ name="#{base}_raw.bedgraph" description="#{base}_raw.bedgraph" visibility=full c
     cov = "genomeCoverageBed -i #{out_prefix}_tmp.bed -g #{@conf.genome_table_path} -bg -trackline -trackopts '#{trackopts.chomp}'"
     cov += " > #{out_path}"
     cmd << cov
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure creating bedgraph for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure creating bedgraph for #{@bam} #{$?.exitstatus}"
+      return false
     end
     @raw_bedgraph_path = "#{out_prefix}_raw.bedgraph"
     return true
@@ -169,12 +157,10 @@ name="#{base}_raw.bedgraph" description="#{base}_raw.bedgraph" visibility=full c
       filt += "se -vsize=#{@bam.fragment_size}"
     end
     cmd << "\"#{filt}\""
-    unless @conf.skip_visualization
-      puts cmd.join(" ") if @conf.verbose
-      unless system(*cmd)
-        @errors << "Failure prepping bedfiles for #{@bam} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure prepping bedfiles for #{@bam} #{$?.exitstatus}"
+      return false
     end
     if @bam.paired?
       IO.foreach(out_prefix+FRAGMENT_SIZE_SUFFIX) do |line|

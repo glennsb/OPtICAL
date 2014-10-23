@@ -42,10 +42,14 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     # We probably want to visualize this merged bams
     vis_output_base = File.join(Optical::ChipAnalysis::DIRS[:vis],name)
     Dir.mkdir(vis_output_base) unless Dir.exists?(vis_output_base)
-    @control_vis = Optical::ChipBamVisual.new(vis_output_base,control.analysis_ready_bam,conf)
-    @control_vis.create_files()
-    @treatment_vis = Optical::ChipBamVisual.new(vis_output_base,treatment.analysis_ready_bam,conf)
-    @treatment_vis.create_files()
+    {control => @control_vis, treatment => @treatment_vis}.each do |ct,vis|
+      dir = File.join(vis_output_base,ct.safe_name)
+      Dir.mkdir(dir) unless Dir.exists?(dir)
+      ct.checkpointed(dir) do |out,s|
+        vis = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,conf)
+        vis.create_files()
+      end
+    end
 
     peakers = @treatments.map do |t|
       peak_caller().new("idr",[t],[control],@opts)
@@ -274,12 +278,10 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       %W(picard MergeSamFiles OUTPUT=#{output} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
          COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
          inputs.map {|l| "INPUT=#{l}" }
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
+      return false
     end
     return true
   end

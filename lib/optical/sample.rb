@@ -2,12 +2,18 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+require 'optical/checkpointable'
+
 class Optical::Sample
+  include Optical::Checkpointable
+
   attr_reader :name
 
   attr_accessor :analysis_ready_bam, :bam_visual
 
   def initialize(name,libraries)
+    @analysis_ready_bam = nil
+    @bam_visual = nil
     @name = name
     @libs = libraries
   end
@@ -54,5 +60,10 @@ class Optical::Sample
       replicate_samples << rep
     end
     return replicate_samples
+  end
+
+  def add_error(msg)
+    @errors ||= []
+    @errors << msg
   end
 end

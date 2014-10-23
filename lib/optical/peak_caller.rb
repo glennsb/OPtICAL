@@ -4,6 +4,8 @@
 
 class Optical::PeakCaller
 
+  include Optical::Checkpointable
+
   Dir[File.join( File.dirname(__FILE__),"peak_callers","*.rb")].each do |rb|
     require rb
   end
@@ -48,12 +50,10 @@ class Optical::PeakCaller
           end
     cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"crosscorr_#{safe_name()}") +
       %W(#{spp} -c=#{@treatments[0].analysis_ready_bam.path.shellescape} -rf -savp -out=strand_cross_correlation.txt)
-    unless conf.skip_peak_calling
-      puts cmd.join(" ") if conf.verbose
-      unless system(*cmd)
-        @errors << "Failed to execute xcorspp for #{self}: #{$?.exitstatus}"
-        return false
-      end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @errors << "Failed to execute xcorspp for #{self}: #{$?.exitstatus}"
+      return false
     end
     return true
   end
@@ -110,5 +110,9 @@ class Optical::PeakCaller
 
   def has_errors?()
     @errors.size > 0
+  end
+
+  def add_error(msg)
+    @errors << msg
   end
 end
