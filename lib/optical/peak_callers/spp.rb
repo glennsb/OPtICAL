@@ -26,7 +26,7 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
   end
 
   def peak_path()
-    @region_peak_path
+    [@region_peak_path]
   end
 
   private
