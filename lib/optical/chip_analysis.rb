@@ -32,6 +32,8 @@ class Optical::ChipAnalysis
   private
 
   def create_final_report()
+    r = Optical::FinalReport.new(@conf)
+    r.save_report("readme")
   end
 
   def setup_directories

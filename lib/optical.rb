@@ -13,6 +13,7 @@ require "optical/chip_bam_visual"
 require "optical/bam"
 require "optical/peak_caller"
 require "optical/checkpointable"
+require "optical/final_report"
 
 module Optical
   def self.threader(enum,on_error)
