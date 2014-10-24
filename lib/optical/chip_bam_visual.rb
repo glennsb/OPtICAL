@@ -13,6 +13,18 @@ class Optical::ChipBamVisual
     @bam = input_bam
     @conf = conf
     @color = @conf.random_visualization_color()
+    @raw_bedgraph_path = nil
+    @normalized_bedgraph_path = nil
+    @raw_wig_path = nil
+    @normalized_wig_path = nil
+    @tdf_wig_path = nil
+  end
+
+  def encode_with(coder)
+    (instance_variables-[:@conf]).each do |v|
+      #next if "@conf" == v.to_s
+      coder[v.to_s.sub(/^@/, '')] = instance_variable_get(v)
+    end
   end
 
   def create_files()

@@ -11,7 +11,7 @@ module Optical::Checkpointable
     cp_path = File.join(outbase,"checkpoint.yml")
     if File.exists?(cp_path)
       ser = YAML::load_file(cp_path)
-      self.instance_variables.each do |v|
+      (self.instance_variables-[:@conf]).each do |v|
         self.instance_variable_set(v,ser.instance_variable_get(v))
       end
       return true
