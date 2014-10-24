@@ -85,7 +85,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
         if individual_peakers.include?(p)
           p.trim_peaks!(@individual_peaks_limit,conf) if @individual_peaks_limit
         end
-        puts "#{p.num_peaks} peaks for #{p}" #we get it here once, to avoid thread errors later
+        puts "#{p.num_peaks.first} peaks for #{p}" #we get it here once, to avoid thread errors later
         true
       end
     end
@@ -118,6 +118,14 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
 
   def optimal_peak_path()
     @final_peak_paths["optimal"]
+  end
+
+  def peak_path
+    [conservative_peak_path, optimal_peak_path]
+  end
+
+  def num_peaks
+    [@conservative_count, @optimal_count]
   end
 
   private
@@ -217,7 +225,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
 
   def run_idr!(idrs,output_base,conf,on_error)
     Optical.threader(idrs.values.flatten(1),on_error) do |idr|
-      if 0 == idr.peak_pair[0].num_peaks || 0 == idr.peak_pair[1].num_peaks
+      if 0 == idr.peak_pair[0].num_peaks.first || 0 == idr.peak_pair[1].num_peaks.first
         idr.results = ""
       else
         out = File.join(output_base, "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}")

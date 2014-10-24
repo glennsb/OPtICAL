@@ -36,7 +36,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
   end
 
   def peak_path()
-    @encode_peak_path
+    [@encode_peak_path]
   end
 
   private

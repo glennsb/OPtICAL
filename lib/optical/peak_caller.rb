@@ -79,11 +79,11 @@ class Optical::PeakCaller
   def num_peaks()
     unless @num_peaks
       @num_peaks = 0
-      IO.foreach(peak_path()) do
+      IO.foreach(peak_path().first) do
         @num_peaks+=1
       end
     end
-    return @num_peaks
+    return [@num_peaks]
   end
 
   def treatment_samples
