@@ -59,19 +59,19 @@ class Optical::PeakCaller
   end
 
   def trim_peaks!(limit,conf)
-    return unless peak_path() && File.exists?(peak_path())
+    return unless peak_path() && File.exists?(peak_path().first)
     return unless limit > 0
-    base = File.dirname(peak_path())
-    out = File.basename(peak_path())+"_#{limit}_limited.tmp"
+    base = File.dirname(peak_path()[0])
+    out = File.basename(peak_path().first)+"_#{limit}_limited.tmp"
     cmd = conf.cluster_cmd_prefix(wd:base, free:1, max:2, sync:true, name:"sort_peaks_#{safe_name()}") +
-      ["sort -k8 -n -r #{File.basename(peak_path()).shellescape} | head -n #{limit} | sort -k1,1 -k2,2n -k3,3n > #{out.shellescape}"]
+      ["sort -k8 -n -r #{File.basename(peak_path().first).shellescape} | head -n #{limit} | sort -k1,1 -k2,2n -k3,3n > #{out.shellescape}"]
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
-      @errors << "Failure in limiting #{peak_path()} to #{limit} peaks"
+      @errors << "Failure in limiting #{peak_path().first} to #{limit} peaks"
       return false
     end
-    File.delete(peak_path())
-    File.rename(File.join(File.dirname(peak_path()),out),peak_path())
+    File.delete(peak_path().first)
+    File.rename(File.join(File.dirname(peak_path().first),out),peak_path().first)
     return true
   end
 

@@ -136,10 +136,10 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     types_counts = {"conservative" => @conservative_count, "optimal" => @optimal_count}
     return Optical.threader(types_counts,on_error) do |type,count|
       puts "Getting #{type} #{count} of final peaks from #{peaker}"
-      out = "final_#{type}_#{File.basename(peaker.peak_path)}"
+      out = "final_#{type}_#{File.basename(peaker.peak_path.first)}"
       mutex.synchronize { @final_peak_paths[type] = File.join(output_base,out) }
       cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:2, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
-        ["sort -k#{score_sort_column()} -n -r #{File.basename(peaker.peak_path)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
+        ["sort -k#{score_sort_column()} -n -r #{File.basename(peaker.peak_path.first)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
       puts cmd.join(" ") if conf.verbose
       unless system(*cmd)
         on_error.call("Failure in creating final #{type} for #{safe_name}")
@@ -230,7 +230,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       else
         out = File.join(output_base, "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}")
         cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
-          %W(Rscript #{conf.idr_script} #{idr.peak_pair[0].peak_path} #{idr.peak_pair[1].peak_path}) +
+          %W(Rscript #{conf.idr_script} #{idr.peak_pair[0].peak_path.first} #{idr.peak_pair[1].peak_path.first}) +
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
         puts cmd.join(" ") if conf.verbose
         unless system(*cmd)
