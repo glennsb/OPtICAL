@@ -109,6 +109,8 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     return false unless create_final_peak_files(merged_vs_merged_peaker,
                                                 output_base,conf,on_error)
 
+    @treatments << treatment
+    @controls << control
     return @errors.empty?
   end
 
