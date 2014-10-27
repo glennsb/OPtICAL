@@ -61,10 +61,10 @@ class Optical::FinalReport
 
   def report_bams()
     lines = [%W(Bam Fragment Alignments)]
-    samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact
-    samples.uniq! {|a| a.analysis_ready_bam.to_s}
-    samples.map {|s| s.analysis_ready_bam}.uniq.each do |bam|
-      path = "[#{File.basename(bam.path)}](#{bam.path})"
+    samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact.uniq
+    samples.map {|s| [s.analysis_ready_bam,s]}.each do |bam,s|
+      name = File.join( File.basename(File.dirname(bam.path)), File.basename(bam.path) )
+      path = "[#{name}](#{bam.path})"
       lines << [path, bam.fragment_size.to_s, bam.num_alignments.to_s]
     end
     make_table(lines)
@@ -72,9 +72,6 @@ class Optical::FinalReport
 
   def report_libraries()
     lines = [%W(Library)]
-    #samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact
-    #samples.uniq! {|a| a.analysis_ready_bam.to_s}
-    #samples.map {|s| s.libraries.to_a}.uniq.each do |lib|
     @conf.samples do |s|
       s.libraries.each do |lib|
         lines << [lib.fastq_paths.join(",")]
