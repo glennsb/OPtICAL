@@ -71,13 +71,29 @@ class Optical::FinalReport
   end
 
   def report_libraries()
-    lines = [%W(Library)]
+    lines = [%W(Sample Fastq FastQC)]
+    counts_headers = get_library_complexity_count_headers()
+    lines[0] += counts_headers.map{|s| s.to_s.tr("_"," ")}
     @conf.samples do |s|
-      s.libraries.each do |lib|
-        lines << [lib.fastq_paths.join(",")]
+      s.libraries.each_with_index do |lib,i|
+        name = lib.fastq_paths.map{|f| File.basename(f) }.join(",")
+        fastqc = lib.fastqc_paths.map {|f| "[fastqc](#{f})"}.join(", ")
+        line = [s.to_s, name, fastqc]
+        lib.load_stats()
+        counts = lib.mapping_counts
+        counts_headers.each do |h|
+          line << counts[h].to_s
+        end
+        lines << line
       end
     end
     make_table(lines)
+  end
+
+  def get_library_complexity_count_headers()
+    s=@conf.samples().first.last #samples is a hash, so first gives us the name, object
+    s.libraries.first.load_stats()
+    s.libraries.first.mapping_counts.keys
   end
 
   def render
