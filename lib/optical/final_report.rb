@@ -38,7 +38,7 @@ class Optical::FinalReport
   end
 
   def report_peaks()
-    lines = [%W(Name Caller Type File Peaks)]
+    lines = [%W(Name Caller Type Peak\ File NSC RSC Num\ Peaks)]
     @conf.peak_callers do |p|
       paths = p.peak_path
       nums = p.num_peaks
@@ -51,8 +51,9 @@ class Optical::FinalReport
         else
           line << "*not idr*"
         end
-        path = "[#{File.basename(paths[i])}](#{paths[i]})"
-        line += [path,nums[i].to_s]
+        peak_path = "[#{File.basename(paths[i])}](#{paths[i]})"
+        (nsc,rsc) = p.load_cross_correlation()
+        line += [peak_path,nsc,rsc,nums[i].to_s]
         lines << line
       end
     end
