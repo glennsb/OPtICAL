@@ -109,9 +109,29 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     return false unless create_final_peak_files(merged_vs_merged_peaker,
                                                 output_base,conf,on_error)
 
+    @merged_vs_merged_peaker = merged_vs_merged_peaker
     @treatments << treatment
     @controls << control
     return @errors.empty?
+  end
+
+  def load_cross_correlation()
+    if @merged_vs_merged_peaker
+      @merged_vs_merged_peaker.load_cross_correlation()
+    else
+      if @normalized_strand_xcorr_coef && @relative_strand_xcorr_coef then
+        return [@normalized_strand_xcorr_coef,@relative_strand_xcorr_coef]
+      end
+      treatment = File.basename(@treatments.last.analysis_ready_bam.path)
+      IO.foreach( File.join( File.dirname(peak_path().first), "strand_cross_correlation.txt") ) do |line|
+        if line =~ /^#{treatment}/
+          parts = line.chomp.split(/\t/)
+          @normalized_strand_xcorr_coef = parts[8]
+          @relative_strand_xcorr_coef = parts[9]
+        end
+      end
+      return [@normalized_strand_xcorr_coef,@relative_strand_xcorr_coef]
+    end
   end
 
   def conservative_peak_path()

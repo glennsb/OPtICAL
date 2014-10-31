@@ -75,6 +75,20 @@ class Optical::PeakCaller
     return true
   end
 
+  def load_cross_correlation()
+    if @normalized_strand_xcorr_coef && @relative_strand_xcorr_coef then
+      return [@normalized_strand_xcorr_coef,@relative_strand_xcorr_coef]
+    end
+    treatment = File.basename(@treatments.first.analysis_ready_bam.path)
+    IO.foreach( File.join( File.dirname(peak_path().first), "strand_cross_correlation.txt") ) do |line|
+      if line =~ /^#{treatment}/
+        parts = line.chomp.split(/\t/)
+        @normalized_strand_xcorr_coef = parts[8]
+        @relative_strand_xcorr_coef = parts[9]
+      end
+    end
+    return [@normalized_strand_xcorr_coef,@relative_strand_xcorr_coef]
+  end
 
   def num_peaks()
     unless @num_peaks

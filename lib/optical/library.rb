@@ -3,7 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::Library
-  attr_reader :run, :lane, :fastq_paths, :fastqc_paths
+  attr_reader :run, :lane, :fastq_paths, :fastqc_paths, :mapping_counts
   attr_accessor :aligned_path, :qc_path, :filtered_path
 
   def initialize(opts)
