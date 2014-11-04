@@ -28,14 +28,14 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     # We want a single merged CONTROL sample for all peak calling
     control = Optical::Sample.new("#{@controls_name}_pooled",[])
     control.analysis_ready_bam = pool_bams_of_samples(@controls,
-                                           File.join(Dir.getwd,output_base,@controls_name),
+                                           File.join(conf.output_base,output_base,@controls_name),
                                            conf)
     return false unless control.analysis_ready_bam
 
     # We will also use a merged TREATMENT for pseudo reps & final peak calling
     treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
     treatment.analysis_ready_bam = pool_bams_of_samples(@treatments,
-                                                File.join(Dir.getwd,output_base,@treatments_name),
+                                                File.join(conf.output_base,output_base,@treatments_name),
                                                 conf)
     return false unless treatment.analysis_ready_bam
 
