@@ -3,10 +3,12 @@
 # Full license available in LICENSE.txt distributed with this software
 
 require 'erb'
+require 'pathname'
 
 class Optical::FinalReport
   def initialize(conf)
     @conf = conf
+    @base_wd = Pathname.new(@conf.output_base)
   end
 
 
@@ -37,6 +39,16 @@ class Optical::FinalReport
     end.join("\n")
   end
 
+  def md_path_link(p,name=File.basename(p))
+    link = "[#{name}]"
+    if p =~ /^#{File::SEPARATOR}/
+      link += "(#{Pathname.new(p).relative_path_from(@base_wd)})"
+    else
+      link += "(#{p})"
+    end
+    link
+  end
+
   def report_peaks()
     lines = [%W(Name Caller Type Peak\ File NSC RSC Num\ Peaks)]
     @conf.peak_callers do |p|
@@ -51,9 +63,8 @@ class Optical::FinalReport
         else
           line << "*not idr*"
         end
-        peak_path = "[#{File.basename(paths[i])}](#{paths[i]})"
         (nsc,rsc) = p.load_cross_correlation()
-        line += [peak_path,nsc,rsc,nums[i].to_s]
+        line += [md_path_link(paths[i]),nsc,rsc,nums[i].to_s]
         lines << line
       end
     end
@@ -65,8 +76,7 @@ class Optical::FinalReport
     samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact.uniq
     samples.map {|s| [s.analysis_ready_bam,s]}.each do |bam,s|
       name = File.join( File.basename(File.dirname(bam.path)), File.basename(bam.path) )
-      path = "[#{name}](#{bam.path})"
-      lines << [path, bam.fragment_size.to_s, bam.num_alignments.to_s]
+      lines << [md_path_link(bam.path,name), bam.fragment_size.to_s, bam.num_alignments.to_s]
     end
     make_table(lines)
   end
@@ -78,7 +88,7 @@ class Optical::FinalReport
     @conf.samples do |s|
       s.libraries.each_with_index do |lib,i|
         name = lib.fastq_paths.map{|f| File.basename(f) }.join(",")
-        fastqc = lib.fastqc_paths.map {|f| "[fastqc](#{f})"}.join(", ")
+        fastqc = lib.fastqc_paths.map {|f| md_path_link(f,"fastqc")}.join(", ")
         line = [s.to_s, name, fastqc]
         lib.load_stats()
         counts = lib.mapping_counts
