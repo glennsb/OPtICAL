@@ -138,6 +138,13 @@ Libraries
 ---------
 
 <%= report_libraries() %>
+
+Configuration
+-------------
+
+Alignment Filter
+
+: <%= @conf.alignment_filter %>
 EOF
   end
 end
