@@ -13,7 +13,13 @@ class Optical::FinalReport
 
 
   def save_report(file)
-    puts render()
+    report = render()
+    File.open("#{file}.md","w") do |out|
+      out.puts report
+    end
+    File.open("#{file}.html","w") do |out|
+      out.puts html_wrap_report(report)
+    end
     return true
   end
 
@@ -111,6 +117,18 @@ class Optical::FinalReport
     s=@conf.samples().first.last #samples is a hash, so first gives us the name, object
     s.libraries.first.load_stats()
     s.libraries.first.mapping_counts.keys
+  end
+
+  def html_wrap_report(report)
+    <<EOF
+<!DOCTYPE html>
+<html><title>OptiCAL Report</title>
+<xmp theme="simplex" style="display:none;">
+#{report}
+</xmp>
+<script src="http://strapdownjs.com/v/0.2/strapdown.js"></script>
+</html>
+EOF
   end
 
   def render
