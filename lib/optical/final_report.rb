@@ -107,6 +107,7 @@ class Optical::FinalReport
   end
 
   def get_library_complexity_count_headers()
+    #TODO this will screw up with a mix of single & paired end
     s=@conf.samples().first.last #samples is a hash, so first gives us the name, object
     s.libraries.first.load_stats()
     s.libraries.first.mapping_counts.keys
