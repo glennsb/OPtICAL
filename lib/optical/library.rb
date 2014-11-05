@@ -22,6 +22,35 @@ class Optical::Library
   end
 
   def load_stats()
+    if is_paired?()
+      load_paired_stats()
+    else
+      load_single_stats()
+    end
+  end
+
+  def load_paired_stats()
+    IO.foreach(@qc_path) do |line|
+      next if 0 == $.
+       parts = line.chomp.split(/\t/)
+      @name = parts.shift
+      @mapping_counts = {
+        unique_mapped_pairs:parts.shift.to_i,
+        multiple_hit_both_of_pairs:parts.shift.to_i,
+        multiple_hit_one_of_pairs:parts.shift.to_i,
+        unmapped_pairs:parts.shift.to_i,
+        total_pairs:parts.shift.to_i,
+        total_mapped_pairs:parts.shift.to_i,
+        half_mapped_pairs:parts.shift.to_i,
+        unproperly_mapped_pairs:parts.shift.to_i,
+        genomic_positions_with_single_unique_pair_mapped:parts.shift.to_i,
+        genomic_positions_with_greater_than_one_unique_pair_mapped:parts.shift.to_i,
+        total_genomic_positions_with_unique_pairs_mapped:parts.shift.to_i
+      }
+    end
+  end
+
+  def load_single_stats()
     IO.foreach(@qc_path) do |line|
       next if 0 == $.
       (name,number_unique_mapped_reads,number_multiple_hit_reads,
