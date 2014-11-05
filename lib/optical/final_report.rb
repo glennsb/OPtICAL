@@ -50,7 +50,8 @@ class Optical::FinalReport
   end
 
   def report_peaks()
-    lines = [%W(Name Caller Type Peak\ File NSC RSC Num\ Peaks)]
+    lines = [%W(Name Caller Type Peak\ File NSC RSC Num\ Peaks Width\ Median
+                Width\ Mean Width\ SD Enrichment\ Mean Enrichment\ SD)]
     @conf.peak_callers do |p|
       paths = p.peak_path
       nums = p.num_peaks
@@ -65,6 +66,10 @@ class Optical::FinalReport
         end
         (nsc,rsc) = p.load_cross_correlation()
         line += [md_path_link(paths[i]),nsc,rsc,nums[i].to_s]
+        pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
+        data = pipe.readlines.last.chomp.split(/\t/)
+        line += data
+        pipe.close
         lines << line
       end
     end
