@@ -26,10 +26,16 @@ class Optical::ChipAnalysis
     return setup_directories() &&
       prep_samples_for_peak_calling() &&
       call_peaks() &&
+      create_igv_session() &&
       create_final_report() && @errs.empty?
   end
 
   private
+
+  def create_igv_session()
+    i = Optical::IgvSession.new(@conf)
+    i.write("igv_session")
+  end
 
   def create_final_report()
     r = Optical::FinalReport.new(@conf)

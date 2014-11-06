@@ -157,6 +157,11 @@ Libraries
 
 <%= report_libraries() %>
 
+IGV Session
+-----------
+
+[XML Session File](igv_session.xml)
+
 Configuration
 -------------
 

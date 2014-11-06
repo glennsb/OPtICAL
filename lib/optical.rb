@@ -14,6 +14,7 @@ require "optical/bam"
 require "optical/peak_caller"
 require "optical/checkpointable"
 require "optical/final_report"
+require "optical/igv_session"
 
 module Optical
   def self.threader(enum,on_error)
