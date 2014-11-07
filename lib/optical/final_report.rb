@@ -168,6 +168,22 @@ Configuration
 Alignment Filter
 
 : <%= @conf.alignment_filter %>
+
+Remove Duplicates
+
+: <%= @conf.remove_duplicates %>
+
+Reference
+
+: <%= @conf.reference_path %>
+
+Min Mapping Quality Score
+
+: <%= @conf.min_map_quality_score %>
+
+Alignment Mask
+
+: <%= @conf.alignment_masking_bed_path %>
 EOF
   end
 end

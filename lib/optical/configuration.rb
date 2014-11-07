@@ -67,7 +67,7 @@ class Optical::Configuration
   def get_path_conf(key,settings)
     path = settings.fetch(key,nil)
     return nil unless path
-    File.expand_path(path) unless nil == path
+    File.expand_path(path)
   end
 
   def alignment_filter=(filter_klass)
