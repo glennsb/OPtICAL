@@ -27,7 +27,7 @@ class Optical::CLI
       command = command.new(@options,@args)
       command.run!()
     else
-      show_global_help($stderr,1)
+      show_global_help(default_opts,commands,$stderr,1)
     end
   end
 
