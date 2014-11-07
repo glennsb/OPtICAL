@@ -26,15 +26,19 @@ class Optical::IgvSession
 
   def beds()
     @conf.peak_callers.map do |p|
-      NamedPath.new(File.basename(p.peak_bed_path,".bed"),p.peak_bed_path)
-    end
+      p.peak_bed_path.map do |b|
+        NamedPath.new(File.basename(b,".bed"),b)
+      end
+    end.flatten
   end
 
   def tdfs()
     samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact.uniq
     samples.map do |s|
-      NamedPath.new(File.basename(s.bam_visual.tdf_wig_path,".tdf"), s.bam_visual.tdf_wig_path)
-    end
+      if s && s.bam_visual
+        NamedPath.new(File.basename(s.bam_visual.tdf_wig_path,".tdf"), s.bam_visual.tdf_wig_path)
+      end
+    end.compact
   end
 
   def genome_name()
