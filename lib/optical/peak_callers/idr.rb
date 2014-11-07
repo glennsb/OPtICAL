@@ -112,6 +112,10 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     @merged_vs_merged_peaker = merged_vs_merged_peaker
     @treatments << treatment
     @controls << control
+
+    %w(conservative optimal).each do |type|
+      type_peak_bed_path(type)
+    end
     return @errors.empty?
   end
 
@@ -144,6 +148,27 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
 
   def peak_path
     [conservative_peak_path, optimal_peak_path]
+  end
+
+  def type_peak_bed_path(type)
+    @peak_bed_paths ||= {}
+    if @peak_bed_paths[type] && File.exists?(@peak_bed_paths[type])
+      return @peak_bed_paths[type]
+    end
+    @peak_bed_paths[type] = create_peak_bed(@final_peak_paths[type])
+    @peak_bed_paths[type]
+  end
+
+  def conservative_peak_bed_path()
+    type_peak_bed_path("conservative")
+  end
+
+  def optimal_peak_bed_path()
+    type_peak_bed_path("optimal")
+  end
+
+  def peak_bed_path()
+    [conservative_peak_bed_path(), optimal_peak_bed_path()]
   end
 
   def num_peaks

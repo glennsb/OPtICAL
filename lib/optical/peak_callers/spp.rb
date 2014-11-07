@@ -22,11 +22,21 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
     @region_peak_path.sub!(/\.gz$/,'')
     @cross_corelation_plot_path = output_base + "#{part_name(@treatments[0])}.pdf"
 
+    @peak_bed_path = create_peak_bed(@region_peak_path,@conf)
+
     return calculate_cross_correlation(output_base,conf)
   end
 
   def peak_path()
     [@region_peak_path]
+  end
+
+  def peak_bed_path()
+    if @peak_bed_path && File.exists?(@peak_bed_path)
+      return @peak_bed_path
+    end
+    @peak_bed_path = create_peak_bed(@region_peak_path)
+    return [@peak_bed_path]
   end
 
   private

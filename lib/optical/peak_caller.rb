@@ -129,4 +129,18 @@ class Optical::PeakCaller
   def add_error(msg)
     @errors << msg
   end
+
+  private
+
+  def create_peak_bed(peakpath,conf=nil)
+    outpath = peakpath.sub(/\.([^.]+$)/,".bed")
+    cmd = %W(optical peakToBed -f -p #{peakpath} -o #{outpath})
+    if conf
+      cmd += ["-c", conf.random_visualization_color()]
+      cmd = conf.cluster_cmd_prefix(free:1, max:2, sync:true, name:"peak2bed") + cmd
+    end
+    if system(*cmd)
+      return outpath
+    end
+  end
 end

@@ -7,7 +7,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     peak_bed:"_peaks.bed", encode_peak:"_peaks.encodePeak", peak_xls:"_peaks.xls",
     summit_bed:"_summits.bed", pileup:"_treat_pileup.bdg"}
 
-  attr_reader :control_bdg_path, :peak_bed_path, :encode_peak_path, :peak_xls_path, :summit_bed_path,
+  attr_reader :control_bdg_path, :encode_peak_path, :peak_xls_path, :summit_bed_path,
     :pileup_path, :model_pdf_path, :encode_peak_vs_gene_path
 
   def find_peaks(output_base,conf)
@@ -37,6 +37,10 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def peak_path()
     [@encode_peak_path]
+  end
+
+  def peak_bed_path()
+    [@peak_bed_path]
   end
 
   private
