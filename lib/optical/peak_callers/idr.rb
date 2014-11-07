@@ -42,12 +42,12 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     # We probably want to visualize this merged bams
     vis_output_base = File.join(Optical::ChipAnalysis::DIRS[:vis],name)
     Dir.mkdir(vis_output_base) unless Dir.exists?(vis_output_base)
-    {control => @control_vis, treatment => @treatment_vis}.each do |ct,vis|
+    [control,treatment].each do |ct|
       dir = File.join(vis_output_base,ct.safe_name)
       Dir.mkdir(dir) unless Dir.exists?(dir)
       ct.checkpointed(dir) do |out,s|
-        vis = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,conf)
-        vis.create_files()
+        ct.bam_visual = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,conf)
+        ct.bam_visual.create_files()
       end
     end
 
