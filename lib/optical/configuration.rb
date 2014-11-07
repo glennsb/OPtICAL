@@ -45,7 +45,6 @@ class Optical::Configuration
     @samples = samples
     @callers = callers
     @reference_path = settings.fetch(:reference)
-    @peak_caller = settings.fetch(:peak_caller)
     @qsub_opts = settings.fetch(:qsub_opts,"").split(" ")
     @use_qsub = settings.fetch(:use_qsub,true)
     @remove_duplicates = settings.fetch(:remove_duplicates,false)
@@ -145,7 +144,6 @@ class Optical::Configuration
 #{@samples.size} sample(s)
 reference_path: #{@reference_path}
 alignment_filter: #{@alignment_filter}
-peak_caller: :#{@peak_caller}
 qsub_opts: #{@qsub_opts}
 output_base: #{@output_base}
 EOF
