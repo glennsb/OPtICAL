@@ -8,6 +8,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
 
   def initialize(name,treatments,controls,opts)
     super
+    raise ArgumentError,"Too few treatments (< 2) for #{@name}" if @treatments.size < 2
     @idr_args = (opts[:idr_args] || "0.3 F p.value hg19").split(/ /)
     @idr_threshold = (opts[:idr_threshold] || 0.01).to_f
     @individual_peaks_limit = (opts[:individual_peaks_limit] || 0)
