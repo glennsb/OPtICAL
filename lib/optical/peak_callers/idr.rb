@@ -62,6 +62,11 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       idrs[:individual] << Idr.new(peak_pair,nil)
     end
 
+    unless idrs[:individual]
+      @errors << "Not enough treatment samples for IDR"
+      return false
+    end
+
     errs_mutex = Mutex.new()
     on_error = Proc.new do |msg|
       errs_mutex.synchronize { @errors << msg }
