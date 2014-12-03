@@ -33,7 +33,7 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
 
   def peak_bed_path()
     if @peak_bed_path && File.exists?(@peak_bed_path)
-      return @peak_bed_path
+      return [@peak_bed_path]
     end
     @peak_bed_path = create_peak_bed(@region_peak_path)
     return [@peak_bed_path]
