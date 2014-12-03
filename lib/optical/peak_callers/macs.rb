@@ -105,7 +105,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
   end
 
   def run_macs(output_base,conf)
-    cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"#{safe_name()}") +
+    cmd = conf.cluster_cmd_prefix(wd:output_base, free:8, max:32, sync:true, name:"#{safe_name()}") +
       %W(macs2 callpeak -f BAM -t #{@treatments[0].analysis_ready_bam.path}
          -c #{@controls[0].analysis_ready_bam.path} -n #{safe_name()}
          --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
