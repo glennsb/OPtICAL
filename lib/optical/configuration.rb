@@ -8,8 +8,8 @@ class Optical::Configuration
   def self.from_yaml(file_path)
     confy = YAML::load_file(file_path)
     raise "Configuration file missing 'settings' section" unless confy['settings']
-    raise "Configguration file mssing 'samples' section" unless confy['samples']
-    raise "Configguration file mssing 'samples' section" unless confy['peak_callers']
+    raise "Configuration file mssing 'samples' section" unless confy['samples']
+    raise "Configuration file mssing 'peak_callers' section" unless confy['peak_callers']
     samples = {}
     confy['samples'].each do |name,libs|
       samples[name] = Optical::Sample.new(name,libs.map{|l| Optical::Library.new(l)})
