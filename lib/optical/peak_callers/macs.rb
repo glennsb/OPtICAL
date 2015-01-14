@@ -12,7 +12,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def find_peaks(output_base,conf)
     full_output_base = File.join(output_base,safe_name)
-    [@treatments[0], @controls[0]].each do |s|
+    (@treatments + @controls).each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam (#{s.analysis_ready_bam}) is missing"
         return false
@@ -89,6 +89,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
   end
 
   def model_to_pdf(output_base,conf)
+    return true if @cmd_args.include?("--nomodel")
     rscript = "#{safe_name()}#{MACS_OUTPUT_SUFFICES[:model_r]}"
     cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4, sync:true, name:"r_#{safe_name()}") +
       %W(Rscript #{rscript})
