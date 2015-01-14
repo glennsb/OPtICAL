@@ -141,7 +141,7 @@ EOF
 OPtICAL Run Report
 ==================
 
-Results from OPtICAL version <%= Optical::VERSION %> on <%= Time.now().iso8601() %>
+Results from OPtICAL version <%= Optical::VERSION %> on <%= Time.now().to_s() %>
 
 Peaks
 -----
