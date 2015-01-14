@@ -312,7 +312,7 @@ class Optical::ChipAnalysis
   end
 
   def align_libs(libs,outbase,sample_safe_name)
-    libs.each_with_index do |lib,i|
+    threader(libs.each_with_index.to_a) do |lib,i|
       lib_bam = File.join(outbase,"#{sample_safe_name}_#{i}.bam")
       return false unless bwa_aln(lib,lib_bam,sample_safe_name)
       return false unless generate_lib_qc_report(lib,sample_safe_name)
