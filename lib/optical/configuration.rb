@@ -21,7 +21,7 @@ class Optical::Configuration
           raise "Invalid sample #{s} in treatment section for #{caller_name}" unless samples.has_key?(s)
           samples[s]
         end
-        controls = comp[:controls].split(/\s+/).map do |s|
+        controls = (comp[:controls]||"").split(/\s+/).map do |s|
           raise "Invalid sample #{s} in control section for #{caller_name}" unless samples.has_key?(s)
           samples[s]
         end

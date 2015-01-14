@@ -12,7 +12,6 @@ class Optical::PeakCaller
 
   def self.create(algo,name,treatments,controls,opts)
     raise InvalidArgument, "No treatments" unless treatments && treatments.size > 0
-    raise InvalidArgument, "No controls" unless controls && controls.size > 0
     klass = "Optical::PeakCaller::#{algo}" unless klass =~ /::/
     klass = klass.split("::").inject(Object) {|o,c| o.const_get c}
     klass.new(name,treatments,controls,opts)
@@ -25,15 +24,28 @@ class Optical::PeakCaller
     @cmd_args = (opts[:args]||"").split(/ /)
     @treatments = treatments
     @controls = controls
+    if nil == @controls || 0 == @controls.size
+      @controls = []
+    end
     @errors = []
   end
 
   def to_s
-    "#{@name} of #{@treatments[0]} vs #{@controls[0]}"
+    controls_names = if @controls && nil != @controls[0]
+                       @controls[0]
+                     else
+                       "nil"
+                     end
+    "#{@name} of #{@treatments.map{|x| x.to_s}.join(" & ")} vs #{controls_names}"
   end
 
   def safe_name
-    "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments[0].safe_name}_vs_#{@controls[0].safe_name}"
+    controls_names = if @controls && nil != @controls[0]
+                       @controls[0].safe_name
+                     else
+                       "nil"
+                     end
+    "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}_vs_#{controls_names}"
   end
 
   def find_peaks(output_base,conf)
