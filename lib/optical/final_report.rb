@@ -126,7 +126,7 @@ class Optical::FinalReport
 <xmp theme="simplex" style="display:none;">
 #{report}
 </xmp>
-<script src="http://strapdownjs.com/v/0.2/strapdown.js"></script>
+<script src="https://ngs.omrf.org/~glenns/strapdown/strapdown.js"></script>
 </html>
 EOF
   end
