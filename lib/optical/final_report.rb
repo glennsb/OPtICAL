@@ -94,14 +94,13 @@ class Optical::FinalReport
   end
 
   def report_libraries()
-    lines = [%W(Sample Fastq FastQC)]
+    lines = [%W(Sample FastQC)]
     counts_headers = get_library_complexity_count_headers()
     lines[0] += counts_headers.map{|s| s.to_s.tr("_"," ")}
     @conf.samples do |s|
       s.libraries.each_with_index do |lib,i|
-        name = lib.fastq_paths.map{|f| File.basename(f) }.join(",")
         fastqc = lib.fastqc_paths.map {|f| md_path_link(f,"fastqc")}.join(", ")
-        line = [s.to_s, name, fastqc]
+        line = [s.to_s, fastqc]
         lib.load_stats()
         counts = lib.mapping_counts
         counts_headers.each do |h|
