@@ -74,7 +74,7 @@ class Optical::FinalReport
         line += [nsc,rsc,nums[i].to_s]
         pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
         data = pipe.readlines.last.chomp.split(/\t/)
-        line += data
+        line += data.map{|f| format("%.3f",f.to_f)}
         line += [md_path_link(paths[i],"open")]
         pipe.close
         lines << line
