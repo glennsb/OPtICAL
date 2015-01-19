@@ -2,23 +2,31 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+Optical::LibraryPart = Struct.new(:run, :lane, :fastq_paths, :bam_path)
+
 class Optical::Library
-  attr_reader :run, :lane, :fastq_paths, :fastqc_paths, :mapping_counts
+  attr_reader :fastqc_paths, :mapping_counts
   attr_accessor :aligned_path, :qc_path, :filtered_path
 
-  def initialize(opts)
-    @run = opts[:run] || ""
-    @lane = opts[:lane] || ""
-    @fastq_paths = opts[:inputs] || []
+  def initialize(parts)
+    @library_parts = parts
     @fastqc_paths = []
   end
 
   def is_paired?()
-    2 == @fastq_paths.size
+    @library_parts.map {|p| 2 == p.fastq_paths.size}.any?
+  end
+
+  def fastq_paths()
+    @library_parts.map {|p| p.fastq_paths}.flatten
   end
 
   def add_fastqc_path(path)
     @fastqc_paths << path
+  end
+
+  def parts()
+    @library_parts
   end
 
   def load_stats()
