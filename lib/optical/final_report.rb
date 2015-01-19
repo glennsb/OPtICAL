@@ -57,7 +57,7 @@ class Optical::FinalReport
 
   def report_peaks()
     lines = [['Name', 'Caller', 'Type', 'NSC', 'RSC', 'Num Peaks', 'Width Median',
-                'Width Mean', 'Width SD', 'Enrichment Mean', 'Enrichment SD', 'Peak File']]
+                'Width Mean', 'Width SD', 'Enrichment Mean', 'Enrichment SD']]
     @conf.peak_callers do |p|
       paths = p.peak_path
       nums = p.num_peaks
@@ -71,11 +71,10 @@ class Optical::FinalReport
           line << "*not idr*"
         end
         (nsc,rsc) = p.load_cross_correlation()
-        line += [nsc,rsc,nums[i].to_s]
+        line += [nsc,rsc, md_path_link(paths[i],nums[i].to_s)]
         pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
         data = pipe.readlines.last.chomp.split(/\t/)
         line += data.map{|f| format("%.3f",f.to_f)}
-        line += [md_path_link(paths[i],"open")]
         pipe.close
         lines << line
       end
