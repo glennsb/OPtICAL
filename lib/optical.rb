@@ -35,7 +35,7 @@ module Optical
     end
 
     if exits.any?{|e| !e}
-      on_error.call("A thread failed")
+      on_error.call("A thread failed near: #{caller_locations(2,1)[0].to_s}")
       return false
     end
     return true
