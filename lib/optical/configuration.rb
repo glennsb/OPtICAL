@@ -12,7 +12,7 @@ class Optical::Configuration
     raise "Configuration file mssing 'peak_callers' section" unless confy['peak_callers']
     samples = {}
     confy['samples'].each do |name,libs|
-      samples[name] = Optical::Sample.new(name,libs.map{|l| Optical::Library.new(l)})
+      samples[name] = Optical::Sample.new(name,create_libs(libs))
     end
     callers = []
     confy['peak_callers'].each do |caller_name,settings|
@@ -30,6 +30,22 @@ class Optical::Configuration
       end
     end
     self.new(samples,callers,confy['settings'])
+  end
+
+  def self.create_libs(sample)
+    libs = []
+    return libs unless Array == sample.class
+    if Hash == sample.first.class
+      #old style listing all libs inline under the sample
+      parts = sample.map {|l| Optical::LibraryPart.new(l[:run],l[:lane],l[:inputs])}
+      libs = [Optical::Library.new(parts)]
+    else
+      #new style listing separate libraries under the sample
+      libs = sample.map do |l|
+        Optical::Library.new(l.map {|p| Optical::LibraryPart.new(p[:run],p[:lane],p[:inputs]) } )
+      end
+    end
+    return libs
   end
 
   attr_reader :output_base, :bwa_threads, :reference_path, :min_map_quality_score,
