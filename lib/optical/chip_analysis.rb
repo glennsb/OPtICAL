@@ -88,7 +88,8 @@ class Optical::ChipAnalysis
         add_error("Failure in fastqc of #{fastq} for #{sample.name} #{$?.exitstatus}")
         return false
       else
-        fastqc_base = "#{File.join(@conf.output_base,outbase, File.basename(File.basename(fastq,".gz"),".fastq"))}_fastqc"
+        fastqc_base = "#{File.join(@conf.output_base,outbase,
+                         File.basename(File.basename(fastq,".gz"),".fastq"))}_fastqc"
         lib.add_fastqc_path("#{fastqc_base}.html")
         begin
           File.delete("#{fastqc_base}.zip")
@@ -142,6 +143,7 @@ class Optical::ChipAnalysis
         end
         true
       else
+        add_error("Error in preparing bam for #{sample}")
         false
       end
     end
@@ -245,7 +247,7 @@ class Optical::ChipAnalysis
     return true
   end
 
-  def bwa_aln(lib,lib_bam,sample_safe_name)
+  def bwa_aln(lib_part,is_paired,lib_bam,sample_safe_name)
     cmd = @conf.cluster_cmd_prefix(free:1, max:48, sync:true, name:"bwa_#{sample_safe_name}", threads:@conf.bwa_threads) +
       %W(/bin/bash -o pipefail -o errexit -c)
     aln_threads = if @conf.bwa_threads > 1
@@ -255,28 +257,28 @@ class Optical::ChipAnalysis
                   end
     name_sort = ""
     bwa_mode = "samse"
-    if lib.is_paired?
+    if is_paired
       bwa_mode = "sampe"
       name_sort = "-n"
     end
 
     bwa_cmd = "bwa #{bwa_mode} " +
-      "-r \\\"@RG\\tID:#{sample_safe_name}_#{lib.run}_#{lib.lane}\\tSM:#{sample_safe_name}\\tPL:Illumina\\tPU:#{lib.lane}\\\" " +
+      "-r \\\"@RG\\tID:#{sample_safe_name}_#{lib_part.run}_#{lib_part.lane}\\tSM:#{sample_safe_name}\\tPL:Illumina\\tPU:#{lib_part.lane}\\\" " +
       @conf.reference_path
-    lib.fastq_paths.each do |fp|
+    lib_part.fastq_paths.each do |fp|
       aln = "bwa aln -t #{aln_threads} #{@conf.reference_path} #{fp}"
       bwa_cmd += " <(#{aln})"
     end
-    bwa_cmd += " #{lib.fastq_paths.join(" ")}"
+    bwa_cmd += " #{lib_part.fastq_paths.join(" ")}"
     bwa_cmd += "| samtools view -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
-      add_error("Failure in bwa of library for #{sample_safe_name} #{$?.exitstatus}")
+      add_error("Failure in bwa of library part for #{sample_safe_name} #{$?.exitstatus}")
       return false
     end
-    lib.aligned_path = File.join(@conf.output_base,lib_bam)
+    lib_part.bam_path = File.join(@conf.output_base,lib_bam)
     return true
   end
 
@@ -286,7 +288,8 @@ class Optical::ChipAnalysis
     bwa_cmd = "bwa mem -v 1 -M -t #{@conf.bwa_threads} " +
       "-R \\\"@RG\\tID:#{sample.name}_#{lib.run}_#{lib.lane}\\tSM:#{sample.name}\\tPL:Illumina\\tPU:#{lib.lane}\\\" " +
       @conf.reference_path
-    bwa_cmd += " #{lib.fastq_paths.join(" ")} "
+      #TODO update for libray parts
+    bwa_cmd += " #{lib.parts.fastq_paths.join(" ")} "
     bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{i} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
     return false
@@ -312,11 +315,39 @@ class Optical::ChipAnalysis
   end
 
   def align_libs(libs,outbase,sample_safe_name)
-    threader(libs.each_with_index.to_a) do |lib,i|
-      lib_bam = File.join(outbase,"#{sample_safe_name}_#{i}.bam")
-      return false unless bwa_aln(lib,lib_bam,sample_safe_name)
-      return false unless generate_lib_qc_report(lib,sample_safe_name)
+    return threader(libs.each_with_index.to_a) do |lib,i|
+      process_lib_parts(lib,i,outbase,sample_safe_name)
     end #each lib
+  end
+
+  def process_lib_parts(lib,i,outbase,sample_safe_name)
+    threader(lib.parts.each_with_index.to_a) do |part,p|
+      lib_bam = File.join(outbase,"#{sample_safe_name}_lib#{i}_part#{p}.bam")
+      bwa_aln(part,lib.is_paired?,lib_bam,sample_safe_name)
+    end #each lib part
+    lib_bam = File.join(outbase,"#{sample_safe_name}_#{i}.bam")
+    return false unless merge_library_parts(lib,lib_bam,sample_safe_name)
+    return false unless generate_lib_qc_report(lib,sample_safe_name)
+    return true
+  end
+
+  def merge_library_parts(lib,final_bam,sample_safe_name)
+    cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{sample_safe_name}") +
+      %W(picard MergeSamFiles OUTPUT=#{final_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
+         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
+         lib.parts.map {|p| "INPUT=#{p.bam_path}" }
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      add_error("Failure in merge of library parts #{final_bam} of sample #{sample_safe_name} #{$?.exitstatus}")
+      return false
+    end
+    lib.parts.each do |p|
+      begin
+        File.delete(p.bam_path)
+      rescue
+      end
+    end
+    lib.aligned_path = final_bam
     return true
   end
 
