@@ -10,7 +10,9 @@ class Optical::PeakCaller::MacsMerged < Optical::PeakCaller::Macs
     @opts = opts
     @treatments_name = (@opts.delete(:treatment_name) || @treatments.first.safe_name).tr(" ",'_').tr("/","_")
     @controls_name = (@opts.delete(:control_name) || @controls.first.safe_name).tr(" ",'_').tr("/","_")
+  end
 
+  def find_peaks(output_base,conf)
     # We want a single merged CONTROL sample for all peak calling
     if @controls.size > 1
       control = Optical::Sample.new("#{@controls_name}_pooled",[])
@@ -43,5 +45,6 @@ class Optical::PeakCaller::MacsMerged < Optical::PeakCaller::Macs
         ct.bam_visual.create_files()
       end
     end
+    super
   end
 end
