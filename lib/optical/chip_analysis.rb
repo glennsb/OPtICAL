@@ -270,7 +270,10 @@ class Optical::ChipAnalysis
       bwa_cmd += " <(#{aln})"
     end
     bwa_cmd += " #{lib_part.fastq_paths.join(" ")}"
-    bwa_cmd += "| samtools view -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
+    downsample = if lib_part[:downsample]
+                   " -s #{rand(0..1000)}.#{lib_part[:downsample]}"
+                 end
+    bwa_cmd += "| samtools view #{downsample} -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
     puts cmd.join(" ") if @conf.verbose

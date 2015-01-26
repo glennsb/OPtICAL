@@ -2,7 +2,7 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
-Optical::LibraryPart = Struct.new(:run, :lane, :fastq_paths, :bam_path)
+Optical::LibraryPart = Struct.new(:run, :lane, :fastq_paths, :downsample, :bam_path)
 
 class Optical::Library
   attr_reader :fastqc_paths, :mapping_counts
