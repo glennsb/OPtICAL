@@ -29,7 +29,11 @@ class Optical::FinalReport
     maxes = Array.new(lines[0].size,0)
     lines.each do |l|
       l.each_with_index do |s,i|
-        maxes[i] = s.length if s.length > maxes[i]
+        if s
+          maxes[i] = s.length if s.length > maxes[i]
+        else
+          maxes[i] = 0 if 0 > maxes[i]
+        end
       end
     end
     lines.insert(1,%w(-)*lines[0].size)
@@ -39,7 +43,11 @@ class Optical::FinalReport
     lines.map do |l|
       line = "|"
       l.each_with_index do |s,i|
-        line += " #{s.ljust(maxes[i]," ")} |"
+        if s
+          line += " #{s.ljust(maxes[i]," ")} |"
+        else
+          line += " #{' '*maxes[i]} |"
+        end
       end
       line
     end.join("\n")
@@ -72,10 +80,21 @@ class Optical::FinalReport
         end
         (nsc,rsc) = p.load_cross_correlation()
         line += [nsc,rsc, md_path_link(paths[i],nums[i].to_s)]
-        pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
-        data = pipe.readlines.last.chomp.split(/\t/)
-        line += data.map{|f| format("%.3f",f.to_f)}
-        pipe.close
+        if File.exists?(paths[i])
+          pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
+          data = pipe.readlines.last
+          if data
+            data = data.chomp.split(/\t/)
+          else
+            data = [0]*5
+            $stderr.puts "Warning no encodePeak data for #{p.to_s}"
+          end
+          line += data.map{|f| format("%.3f",f.to_f)}
+          pipe.close
+        else
+          $stderr.puts "Warning, no peak file for #{p.to_s} can't find #{paths[i]}"
+          line += [0]*5
+        end
         lines << line
       end
     end
