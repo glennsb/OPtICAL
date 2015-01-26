@@ -26,12 +26,15 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
   end
 
   def find_peaks(output_base,conf)
+    control = nil
     # We want a single merged CONTROL sample for all peak calling
-    control = Optical::Sample.new("#{@controls_name}_pooled",[])
-    control.analysis_ready_bam = pool_bams_of_samples(@controls,
-                                           File.join(conf.output_base,output_base,@controls_name),
-                                           conf)
-    return false unless control.analysis_ready_bam
+    if nil != @controls && @controls.size > 0
+      control = Optical::Sample.new("#{@controls_name}_pooled",[])
+      control.analysis_ready_bam = pool_bams_of_samples(@controls,
+                                             File.join(conf.output_base,output_base,@controls_name),
+                                             conf)
+      return false unless control.analysis_ready_bam
+    end
 
     # We will also use a merged TREATMENT for pseudo reps & final peak calling
     treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
@@ -43,7 +46,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     # We probably want to visualize this merged bams
     vis_output_base = File.join(Optical::ChipAnalysis::DIRS[:vis],name)
     Dir.mkdir(vis_output_base) unless Dir.exists?(vis_output_base)
-    [control,treatment].each do |ct|
+    [control,treatment].compact.each do |ct|
       dir = File.join(vis_output_base,ct.safe_name)
       Dir.mkdir(dir) unless Dir.exists?(dir)
       ct.checkpointed(dir) do |out,s|
@@ -100,7 +103,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     # Do we need/want to save the intermediate bams?
     (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates] + [Idr.new([merged_vs_merged_peaker],nil)]).flatten.each do |idr|
       idr.peak_pair.each do |p|
-        (p.treatments + p.controls).each do |s|
+        (p.treatments + p.controls).compact.each do |s|
           File.delete(s.analysis_ready_bam.path) if File.exists?(s.analysis_ready_bam.path)
         end
       end
@@ -117,7 +120,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
 
     @merged_vs_merged_peaker = merged_vs_merged_peaker
     @treatments << treatment
-    @controls << control
+    @controls << control if control
 
     %w(conservative optimal).each do |type|
       type_peak_bed_path(type)
