@@ -5,6 +5,7 @@
 class Optical::PeakCaller::MacsMerged < Optical::PeakCaller::Macs
 
   def initialize(name,treatments,controls,opts)
+    raise "MacsMerged is currently disabled"
     super
     raise ArgumentError,"Too few treatments (< 2) for #{@name}" if @treatments.size < 2
     @opts = opts
