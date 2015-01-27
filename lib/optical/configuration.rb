@@ -18,11 +18,11 @@ class Optical::Configuration
     confy['peak_callers'].each do |caller_name,settings|
       raise "No settings for caller #{caller_name}" unless settings
       settings[:comparisons].each do |comp|
-        treatments = comp[:treatments].split(/\s+/).map do |s|
+        treatments = comp[:treatments].split(/\s+/).sort.map do |s|
           raise "Invalid sample #{s} in treatment section for #{caller_name}" unless samples.has_key?(s)
           samples[s]
         end
-        controls = (comp[:controls]||"").split(/\s+/).map do |s|
+        controls = (comp[:controls]||"").split(/\s+/).sort.map do |s|
           raise "Invalid sample #{s} in control section for #{caller_name}" unless samples.has_key?(s)
           samples[s]
         end
