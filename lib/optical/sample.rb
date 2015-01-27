@@ -43,7 +43,7 @@ class Optical::Sample
     # shuffle the bam, and ever %num_replicates goes to different file, then sort those
     rep_base_name = "#{safe_name}_pseudo_replicate"
     outname = File.join(output_base,rep_base_name)
-    cmd = conf.cluster_cmd_prefix(free:10, max:40, sync:true, name:"replicate_#{safe_name}") +
+    cmd = conf.cluster_cmd_prefix(free:10, max:50, sync:true, name:"replicate_#{safe_name}") +
           %W(optical pseudoReplicateBam -b #{analysis_ready_bam.path} -o #{outname} -r #{num_replicates})
     unless system(*cmd)
       return nil
