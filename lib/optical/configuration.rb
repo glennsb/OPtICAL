@@ -132,6 +132,14 @@ class Optical::Configuration
     end
   end
 
+  def sample(name)
+    @samples.fetch(name)
+  end
+
+  def add_sample(name,sample)
+    @samples[name] = sample
+  end
+
   def peak_callers()
     return @callers.to_enum unless block_given?
     @callers.each do |c|
