@@ -4,7 +4,7 @@
 
 class Optical::PeakCaller::Macs < Optical::PeakCaller
   MACS_OUTPUT_SUFFICES = {control_bdg:"_control_lambda.bdg", model_r:"_model.r", model_pdf:"_model.pdf",
-    peak_bed:"_peaks.bed", encode_peak:"_peaks.encodePeak", peak_xls:"_peaks.xls",
+    peak_bed:"_peaks.bed", encode_peak:"_peaks.narrowPeak", peak_xls:"_peaks.xls",
     summit_bed:"_summits.bed", pileup:"_treat_pileup.bdg"}
 
   attr_reader :control_bdg_path, :encode_peak_path, :peak_xls_path, :summit_bed_path,
@@ -43,6 +43,15 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     [@peak_bed_path]
   end
 
+  def clean
+    [@control_bdg_path, @encode_peak_path, @peak_xls_path, @summit_bed_path,
+     @pileup_path, @model_pdf_path, @encode_peak_vs_gene_path].keep_if do |f|
+      f && File.exists?(f)
+    end.each do |f|
+      File.delete(f)
+    end
+  end
+
   private
 
   def find_genes_near_peaks(in_path,out_path,conf)
@@ -60,6 +69,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
   end
 
   def add_track_header_to_file(path,conf)
+    return true unless File.exists?(path)
     name=File.basename(path)
     header=<<-EOF
 track name="#{name}" description="#{name}" visibility=full color="#{conf.random_visualization_color()}"
@@ -78,7 +88,9 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
   def strip_name_prefix_from_peak_names(conf)
     cmd = conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"name_strip_#{safe_name()}") +
       %W(sed -i '/^chr/ s/#{safe_name()}_//') +
-      [@peak_bed_path, @encode_peak_path, @peak_xls_path, @summit_bed_path]
+      [@peak_bed_path, @encode_peak_path, @peak_xls_path, @summit_bed_path].keep_if do |f|
+        File.exists?(f)
+      end
 
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
