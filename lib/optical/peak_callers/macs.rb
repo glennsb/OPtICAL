@@ -12,7 +12,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def find_peaks(output_base,conf)
     full_output_base = File.join(output_base,safe_name)
-    (@treatments + @controls).each do |s|
+    (@treatments + @controls).compact.each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam (#{s.analysis_ready_bam}) is missing"
         return false
@@ -106,7 +106,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
   end
 
   def run_macs(output_base,conf)
-    controls_cmd = if @controls && @controls.size > 0
+    controls_cmd = if @controls && @controls.size > 0 && nil != @controls[0]
                      %W(-c #{@controls[0].analysis_ready_bam.path})
                    else
                      []
