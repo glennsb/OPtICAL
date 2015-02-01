@@ -3,7 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::PeakCaller
-
+  using Optical::StringExensions
   include Optical::Checkpointable
 
   Dir[File.join( File.dirname(__FILE__),"peak_callers","*.rb")].each do |rb|
@@ -40,12 +40,14 @@ class Optical::PeakCaller
   end
 
   def safe_name
-    controls_names = if @controls && nil != @controls[0]
-                       @controls[0].safe_name
-                     else
-                       "nil"
-                     end
-    "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}_vs_#{controls_names}"
+    name = "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}"
+    if @controls && nil != @controls[0]
+                       "#{name}_vs_#{@controls[0].safe_name}".mid_truncate(100)
+    else
+                       name
+                       #"nil"
+    end
+    #"#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}_vs_#{controls_names}"
   end
 
   def find_peaks(output_base,conf)
@@ -142,6 +144,9 @@ class Optical::PeakCaller
     @errors << msg
   end
 
+  def clean
+  end
+
   private
 
   def create_peak_bed(peakpath,conf=nil)
@@ -154,32 +159,5 @@ class Optical::PeakCaller
     if system(*cmd)
       return outpath
     end
-  end
-
-  def pool_bams_of_samples(samples,output_base,conf)
-    pooled_path = "#{output_base}_pooled.bam"
-    if 1 == samples.size then
-      require 'fileutils'
-      FileUtils.ln_s(samples[0].analysis_ready_bam.path,pooled_path) unless File.exists?(pooled_path)
-    else
-      return nil unless merge_bams_to(samples.map{|c| c.analysis_ready_bam.path},pooled_path,conf)
-    end
-    b = Optical::Bam.new(pooled_path,samples[0].analysis_ready_bam.paired?)
-    b.fragment_size = samples.reduce(0) {|sum,c| sum+=c.analysis_ready_bam.fragment_size}/samples.size
-    b.dupes_removed = samples[0].analysis_ready_bam.dupes_removed
-    return b
-  end
-
-  def merge_bams_to(inputs,output,conf)
-    cmd = conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{safe_name}_#{File.basename(output)}") +
-      %W(picard MergeSamFiles OUTPUT=#{output} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
-         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
-         inputs.map {|l| "INPUT=#{l}" }
-    puts cmd.join(" ") if conf.verbose
-    unless system(*cmd)
-      @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
-      return false
-    end
-    return true
   end
 end

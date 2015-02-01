@@ -3,6 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::PeakCaller::Idr < Optical::PeakCaller
+  using Optical::StringExensions
 
   Idr = Struct.new(:peak_pair, :results, :passing_peaks)
 
@@ -22,7 +23,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
   end
 
   def safe_name
-    "#{@name}_#{@treatments_name}_vs_#{@controls_name}".tr(" ",'_').tr("/","_")
+    "#{@name}_#{@treatments_name}_vs_#{@controls_name}".tr(" ",'_').tr("/","_").mid_truncate(100)
   end
 
   def find_peaks(output_base,conf)
@@ -111,8 +112,8 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       end
     end
     return @errors.empty?
-
   end
+
   def load_cross_correlation()
     if @merged_vs_merged_peaker
       @merged_vs_merged_peaker.load_cross_correlation()

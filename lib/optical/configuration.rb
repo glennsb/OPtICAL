@@ -118,7 +118,9 @@ class Optical::Configuration
                   %W(-wd #{File.join(Dir.getwd(),job_opts[:wd])} -o #{File.join(Dir.getwd(),"logs")})
                 end
       prefix += %w(-sync y) if job_opts.fetch(:sync,false)
-      prefix += %W(-N #{job_opts[:name]}) if job_opts[:name] && !job_opts[:name].empty?
+      if job_opts[:name] && !job_opts[:name].empty?
+        prefix += %W(-N #{job_opts[:name].gsub(/^(.{50,}?).*$/m,'\1')})
+      end
       prefix += %W(-pe threaded #{job_opts[:threads]}) if job_opts[:threads]
       prefix += @qsub_opts unless @qsub_opts.empty?
     end

@@ -3,6 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 require "shellwords"
+require "optical/refine_string"
 require "optical/version"
 require "optical/configuration"
 require "optical/library"
