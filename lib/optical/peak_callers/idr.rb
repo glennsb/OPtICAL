@@ -29,31 +29,11 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     control = nil
     # We want a single merged CONTROL sample for all peak calling
     if nil != @controls && @controls.size > 0
-      control = Optical::Sample.new("#{@controls_name}_pooled",[])
-      control.analysis_ready_bam = pool_bams_of_samples(@controls,
-                                             File.join(conf.output_base,output_base,@controls_name),
-                                             conf)
-      return false unless control.analysis_ready_bam
+      control = conf.sample(@controls.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
     end
 
     # We will also use a merged TREATMENT for pseudo reps & final peak calling
-    treatment = Optical::Sample.new("#{@treatments_name}_pooled",[])
-    treatment.analysis_ready_bam = pool_bams_of_samples(@treatments,
-                                                File.join(conf.output_base,output_base,@treatments_name),
-                                                conf)
-    return false unless treatment.analysis_ready_bam
-
-    # We probably want to visualize this merged bams
-    vis_output_base = File.join(Optical::ChipAnalysis::DIRS[:vis],name)
-    Dir.mkdir(vis_output_base) unless Dir.exists?(vis_output_base)
-    [control,treatment].compact.each do |ct|
-      dir = File.join(vis_output_base,ct.safe_name)
-      Dir.mkdir(dir) unless Dir.exists?(dir)
-      ct.checkpointed(dir) do |out,s|
-        ct.bam_visual = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,conf)
-        ct.bam_visual.create_files()
-      end
-    end
+    treatment = conf.sample(@treatments.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
 
     peakers = @treatments.map do |t|
       peak_caller().new("idr",[t],[control],@opts)
@@ -101,7 +81,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     return false if has_errors?()
 
     # Do we need/want to save the intermediate bams?
-    (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates] + [Idr.new([merged_vs_merged_peaker],nil)]).flatten.each do |idr|
+    (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates]).flatten.each do |idr|
       idr.peak_pair.each do |p|
         (p.treatments + p.controls).compact.each do |s|
           File.delete(s.analysis_ready_bam.path) if File.exists?(s.analysis_ready_bam.path)
@@ -126,6 +106,11 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       type_peak_bed_path(type)
     end
     return @errors.empty?
+    (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates]).flatten.each do |idr|
+      idr.peak_pair.each do |p|
+        p.clean()
+      end
+    end
   end
 
   def load_cross_correlation()
