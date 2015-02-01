@@ -105,14 +105,14 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     %w(conservative optimal).each do |type|
       type_peak_bed_path(type)
     end
-    return @errors.empty?
     (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates]).flatten.each do |idr|
       idr.peak_pair.each do |p|
         p.clean()
       end
     end
-  end
+    return @errors.empty?
 
+  end
   def load_cross_correlation()
     if @merged_vs_merged_peaker
       @merged_vs_merged_peaker.load_cross_correlation()

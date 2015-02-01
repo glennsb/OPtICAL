@@ -9,15 +9,16 @@ class Optical::Sample
 
   attr_reader :name
 
-  attr_accessor :analysis_ready_bam, :bam_visual
+  attr_accessor :analysis_ready_bam, :bam_visual, :qc_path
 
   def initialize(name,libraries)
     @analysis_ready_bam = nil
     @bam_visual = nil
+    @qc_path = nil
     @name = name
     @libs = libraries
-  end
 
+  end
   def libraries
     return @libs.to_enum unless block_given?
     @libs.each do |l|
