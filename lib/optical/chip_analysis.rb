@@ -25,6 +25,7 @@ class Optical::ChipAnalysis
   def run()
     return setup_directories() &&
       prep_samples_for_peak_calling() &&
+      pool_any_samples_for_peak_calling() &&
       call_peaks() &&
       create_igv_session() &&
       create_final_report() && @errs.empty?
@@ -47,6 +48,57 @@ class Optical::ChipAnalysis
     DIRS.each do |key,d|
       Dir.mkdir(d) unless File.exists?(d)
     end
+  end
+
+  def poolable_sets_from_peak_callers()
+    poolers = {}
+    @conf.peak_callers.each do |p|
+      ([p.treatments] + [p.controls]).each do |st|
+        poolers[st.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled"] = st if st && st.size > 1
+      end
+    end
+    return poolers
+  end
+
+  def pool_any_samples_for_peak_calling()
+    c_mutex = Mutex.new()
+    threader(poolable_sets_from_peak_callers.each) do |name,set|
+      pool = Optical::Sample.new(name,[])
+      pool.checkpointed(get_sample_dir_in_stage(pool.safe_name,:align,true)) do |outbase,s|
+        s.analysis_ready_bam = pool_bams_of_samples(set,File.join(@conf.output_base,outbase,"#{name}.bam"))
+        return false unless s.analysis_ready_bam
+        s.qc_path = qc_report_for_bam(s.analysis_ready_bam.path,s.has_paired?)
+      end
+      prepare_visualization_for_sample(pool)
+      c_mutex.synchronize { @conf.add_sample(name,pool) }
+      nil != pool.qc_path
+    end
+  end
+
+  def pool_bams_of_samples(samples,pooled_path)
+    if 1 == samples.size then
+      require 'fileutils'
+      FileUtils.ln_s(samples[0].analysis_ready_bam.path,pooled_path) unless File.exists?(pooled_path)
+    else
+      return nil unless merge_bams_to(samples.map{|c| c.analysis_ready_bam.path},pooled_path)
+    end
+    b = Optical::Bam.new(pooled_path,samples[0].analysis_ready_bam.paired?)
+    b.fragment_size = samples.reduce(0) {|sum,c| sum+=c.analysis_ready_bam.fragment_size}/samples.size
+    b.dupes_removed = samples[0].analysis_ready_bam.dupes_removed
+    return b
+  end
+
+  def merge_bams_to(inputs,output)
+    cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{File.basename(output)}") +
+      %W(picard MergeSamFiles OUTPUT=#{output} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
+         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
+         inputs.map {|l| "INPUT=#{l}" }
+    puts cmd.join(" ") if @conf.verbose
+    unless system(*cmd)
+      @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
+      return false
+    end
+    return true
   end
 
   def call_peaks()
@@ -120,7 +172,7 @@ class Optical::ChipAnalysis
 
   def prepare_visualization_for_sample(sample)
     sample.checkpointed(get_sample_dir_in_stage(sample.safe_name,:vis,true)) do |out,s|
-      puts "Preparing visualization files for #{s.name}'s bam (#{s.analysis_ready_bam})" #if @conf.verbose
+      puts "Preparing visualization files for #{s.name}'s bam (#{s.analysis_ready_bam})" if @conf.verbose
       s.bam_visual = Optical::ChipBamVisual.new(out,s.analysis_ready_bam,@conf)
       unless s.bam_visual.create_files()
         add_error("Error in creating visual files: #{s.bam_visual.error()}")
@@ -244,6 +296,7 @@ class Optical::ChipAnalysis
       add_error("Final bam for #{sample.safe_name} does not exist at #{sample.analysis_ready_bam}")
       return false
     end
+    sample.qc_path = qc_report_for_bam(sample.analysis_ready_bam.path,sample.has_paired?)
     return true
   end
 
@@ -299,23 +352,26 @@ class Optical::ChipAnalysis
   end
 
   def generate_lib_qc_report(lib,sample_safe_name)
-    qc_bam = lib.aligned_path
+    lib.qc_path = qc_report_for_bam(lib.aligned_path,lib.is_paired?)
+    return nil != lib.qc_path
+  end
+
+  def qc_report_for_bam(qc_bam,is_paired)
     endness = "se"
-    if lib.is_paired? then
+    if is_paired then
       endness = "pe"
     end
-    qc_file = lib.aligned_path.sub(/\.bam$/,"_alignment_qc.txt")
+    qc_file = qc_bam.sub(/\.bam$/,"_alignment_qc.txt")
     File.unlink(qc_file) if File.exists?(qc_file)
-    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:24, sync:true, name:"align_qc_#{sample_safe_name}") +
+    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:24, sync:true, name:"align_qc_#{File.basename(qc_bam)}") +
       %W(/bin/bash -o pipefail -o errexit -c)
     qc_cmd += ["'library_complexity.sh #{endness} #{qc_bam}' > #{qc_file}"]
     puts qc_cmd.join(" ") if @conf.verbose
     unless system(*qc_cmd)
-      add_error("Failure in qc bwa of library #{qc_bam} for #{sample_safe_name} #{$?.exitstatus}")
-      return false
+      add_error("Failure in qc bwa of #{qc_bam} #{$?.exitstatus}")
+      return nil
     end
-    lib.qc_path = qc_file
-    return true
+    return qc_file
   end
 
   def align_libs(libs,outbase,sample_safe_name)
@@ -325,7 +381,7 @@ class Optical::ChipAnalysis
   end
 
   def process_lib_parts(lib,i,outbase,sample_safe_name)
-    threader(lib.parts.each_with_index.to_a) do |part,p|
+    return false unless threader(lib.parts.each_with_index.to_a) do |part,p|
       lib_bam = File.join(outbase,"#{sample_safe_name}_lib#{i}_part#{p}.bam")
       bwa_aln(part,lib.is_paired?,lib_bam,sample_safe_name)
     end #each lib part
