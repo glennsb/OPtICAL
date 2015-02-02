@@ -66,6 +66,10 @@ class Optical::FinalReport
   def report_peaks()
     lines = [['Name', 'Caller', 'Type', 'NSC', 'RSC', 'Num Peaks', 'Width Median',
                 'Width Mean', 'Width SD', 'Enrichment Mean', 'Enrichment SD']]
+    counts_headers = get_library_complexity_count_headers()
+    lines[0] += counts_headers.map{|s| "treatment #{s}".tr("_"," ")}
+    lines[0] += counts_headers.map{|s| "controls #{s}".tr("_"," ")}
+
     @conf.peak_callers do |p|
       paths = p.peak_path
       nums = p.num_peaks
@@ -95,10 +99,27 @@ class Optical::FinalReport
           $stderr.puts "Warning, no peak file for #{p.to_s} can't find #{paths[i]}"
           line += [0]*5
         end
+        line += peaker_samples_stats(p.treatments,counts_headers)
+        line += peaker_samples_stats(p.controls,counts_headers)
         lines << line
       end
     end
     make_table(lines)
+  end
+
+  def peaker_samples_stats(samples,headers)
+    if nil == samples || 0 == samples.size
+      return headers.map {|h| ""}
+    end
+    sample = if 1 == samples.size
+               samples[0]
+             else
+               @conf.sample(samples.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
+             end
+    counts = sample.mapping_counts()
+    headers.map do |h|
+      counts.fetch(h).to_s
+    end
   end
 
   def report_bams()

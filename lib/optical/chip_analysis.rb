@@ -28,7 +28,8 @@ class Optical::ChipAnalysis
       pool_any_samples_for_peak_calling() &&
       call_peaks() &&
       create_igv_session() &&
-      create_final_report() && @errs.empty?
+      create_final_report() &&
+      @errs.empty?
   end
 
   private
