@@ -100,8 +100,6 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
                                                 output_base,conf,on_error)
 
     @merged_vs_merged_peaker = merged_vs_merged_peaker
-    @treatments << treatment
-    @controls << control if control
 
     %w(conservative optimal).each do |type|
       type_peak_bed_path(type)
