@@ -33,8 +33,22 @@ class Optical::IgvSession
   end
 
   def tdfs()
-    samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact.uniq
-    samples.map do |s|
+    samples = []
+    @conf.peak_callers.each do |pc|
+      samples << if 1 == pc.treatments.size
+                   pc.treatments
+                 else
+                   @conf.sample(pc.treatments.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
+                 end
+      next if 0 == pc.controls.size || nil == pc.controls[0]
+      samples << if 1 == pc.controls.size
+                   pc.controls
+                 else
+                   @conf.sample(pc.controls.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
+                 end
+    end
+    #samples = @conf.peak_callers.map {|pc| pc.treatments + pc.controls}.flatten.compact.uniq
+    samples.flatten.compact.uniq.map do |s|
       if s && s.bam_visual
         NamedPath.new(File.basename(s.bam_visual.tdf_wig_path,".tdf"), s.bam_visual.tdf_wig_path)
       end
