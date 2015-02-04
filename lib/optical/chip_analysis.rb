@@ -72,6 +72,14 @@ class Optical::ChipAnalysis
       end
       prepare_visualization_for_sample(pool)
       c_mutex.synchronize { @conf.add_sample(name,pool) }
+      if nil == pool.qc_path
+        qc_file = pool.analysis_ready_bam.path.sub(/\.bam$/,"_alignment_qc.txt")
+        if File.exists?(qc_file)
+          pool.qc_path = qc_file
+        else
+          pool.qc_path = qc_report_for_bam(pool.analysis_ready_bam.path,pool.has_paired?)
+        end
+      end
       nil != pool.qc_path
     end
   end
