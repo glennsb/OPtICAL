@@ -3,6 +3,6 @@
 # Full license available in LICENSE.txt distributed with this software
 
 module Optical
-  VERSION = "0.3.5"
-  RELEASEDATE = "2015-01-26"
+  VERSION = "0.3.6"
+  RELEASEDATE = "2015-02-05"
 end
