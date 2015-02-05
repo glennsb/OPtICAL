@@ -85,6 +85,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     (idrs[:self_pseudo_replicates] + idrs[:pooled_pseudo_replicates]).flatten.each do |idr|
       idr.peak_pair.each do |p|
         (p.treatments + p.controls).compact.each do |s|
+          next if s == control || s == treatment
           File.delete(s.analysis_ready_bam.path) if File.exists?(s.analysis_ready_bam.path)
         end
       end
