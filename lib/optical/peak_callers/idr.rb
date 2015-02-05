@@ -23,7 +23,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
   end
 
   def safe_name
-    "#{@name}_#{@treatments_name}_vs_#{@controls_name}".tr(" ",'_').tr("/","_").mid_truncate(100)
+    "#{@name}_#{@treatments_name}_vs_#{@controls_name}".tr(" ",'_').tr("/","_")
   end
 
   def find_peaks(output_base,conf)
@@ -268,7 +268,9 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       if 0 == idr.peak_pair[0].num_peaks.first || 0 == idr.peak_pair[1].num_peaks.first
         idr.results = ""
       else
-        out = File.join(output_base, "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}")
+        out = File.join(output_base,
+                        "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}".mid_truncate(100)
+                       )
         cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
           %W(Rscript #{conf.idr_script} #{idr.peak_pair[0].peak_path.first} #{idr.peak_pair[1].peak_path.first}) +
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})

@@ -32,7 +32,7 @@ class Optical::Sample
   end
 
   def safe_name()
-    @safe_name ||= @name.tr(" ",'_').tr("/","_").mid_truncate(20)
+    @safe_name ||= @name.tr(" ",'_').tr("/","_")
   end
 
   def to_s

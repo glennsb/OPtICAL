@@ -42,12 +42,10 @@ class Optical::PeakCaller
   def safe_name
     name = "#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}"
     if @controls && nil != @controls[0]
-                       "#{name}_vs_#{@controls[0].safe_name}".mid_truncate(100)
+                       "#{name}_vs_#{@controls[0].safe_name}"
     else
                        name
-                       #"nil"
     end
-    #"#{@name.tr(" ",'_').tr("/","_")}_#{@treatments.map{|x| x.safe_name}.join("_")}_vs_#{controls_names}"
   end
 
   def find_peaks(output_base,conf)
