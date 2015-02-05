@@ -372,7 +372,7 @@ class Optical::ChipAnalysis
     end
     qc_file = qc_bam.sub(/\.bam$/,"_alignment_qc.txt")
     File.unlink(qc_file) if File.exists?(qc_file)
-    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:24, sync:true, name:"align_qc_#{File.basename(qc_bam)}") +
+    qc_cmd = @conf.cluster_cmd_prefix(free:1, max:48, sync:true, name:"align_qc_#{File.basename(qc_bam)}") +
       %W(/bin/bash -o pipefail -o errexit -c)
     qc_cmd += ["'library_complexity.sh #{endness} #{qc_bam}' > #{qc_file}"]
     puts qc_cmd.join(" ") if @conf.verbose
