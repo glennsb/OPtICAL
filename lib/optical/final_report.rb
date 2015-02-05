@@ -85,13 +85,13 @@ class Optical::FinalReport
         (nsc,rsc) = p.load_cross_correlation()
         line += [nsc,rsc, md_path_link(paths[i],nums[i].to_s)]
         if File.exists?(paths[i])
-          pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}))
+          pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}),:err=>"/dev/null")
           data = pipe.readlines.last
           if data
             data = data.chomp.split(/\t/)
           else
             data = [0]*5
-            $stderr.puts "Warning no encodePeak data for #{p.to_s}"
+            $stderr.puts "Warning no peak_path (#{paths[i]}) data for #{p.to_s}"
           end
           line += data.map{|f| format("%.3f",f.to_f)}
           pipe.close
