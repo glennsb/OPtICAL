@@ -69,7 +69,7 @@ class Optical::Sample
     @errors ||= []
     @errors << msg
   end
-  
+
   def mapping_counts
     unless @mapping_counts
       load_stats()
