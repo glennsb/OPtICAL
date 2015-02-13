@@ -47,6 +47,7 @@ class Optical::Sample
     outname = File.join(output_base,rep_base_name)
     cmd = conf.cluster_cmd_prefix(free:10, max:90, sync:true, name:"replicate_#{safe_name}") +
           %W(optical pseudoReplicateBam -b #{analysis_ready_bam.path} -o #{outname} -r #{num_replicates})
+    puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
       return nil
     end
