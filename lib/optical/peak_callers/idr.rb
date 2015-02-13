@@ -309,7 +309,13 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
         end
         mutex.synchronize { idr_set << Idr.new(to_idr,nil) }
       else
-        on_error.call("Failed to make pseudo replicates for #{t}")
+        on_error.call("Failed to make pseudo replicates for #{t} #{pseudo_replicates.inspect}")
+        if !t.analysis_ready_bam || !File.exists?(t.analysis_ready_bam.path)
+          on_error.call("#{t} missing analysis ready bam")
+        end
+        if ! Dir.exists?(File.expand_path(output_base))
+          on_error.call("#{t} missing output base dir")
+        end
         false
       end # enough PRs
     end #thread each treatment
