@@ -66,7 +66,7 @@ class Optical::FinalReport
   def report_peaks()
     lines = [['Name', 'Caller', 'Type', 'NSC', 'RSC', 'Num Peaks', 'Width Median',
                 'Width Mean', 'Width SD', 'Enrichment Mean', 'Enrichment SD']]
-    counts_headers = get_library_complexity_count_headers()
+    counts_headers = get_library_complexity_count_headers() - [:multiple_hit_reads, :unmapped_reads]
     lines[0] += counts_headers.map{|s| "treatment #{s}".tr("_"," ")}
     lines[0] += counts_headers.map{|s| "controls #{s}".tr("_"," ")}
 
