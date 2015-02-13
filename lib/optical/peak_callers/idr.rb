@@ -2,6 +2,8 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+require 'pathname'
+
 class Optical::PeakCaller::Idr < Optical::PeakCaller
   using Optical::StringExensions
 
@@ -269,18 +271,23 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       if 0 == idr.peak_pair[0].num_peaks.first || 0 == idr.peak_pair[1].num_peaks.first
         idr.results = ""
       else
-        out = File.join(output_base,
-                        "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}".mid_truncate(100)
-                       )
-        cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"idr_#{File.basename(out)}") +
-          %W(Rscript #{conf.idr_script} #{idr.peak_pair[0].peak_path.first} #{idr.peak_pair[1].peak_path.first}) +
+        new_dir = "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}"
+        new_dir = File.join(output_base,new_dir)
+        Dir.mkdir(new_dir) unless Dir.exists?(new_dir)
+        out = "idr"
+        p1 = Pathname.new(idr.peak_pair[0].peak_path.first).each_filename.to_a[-1]
+        p2 = Pathname.new(idr.peak_pair[1].peak_path.first).each_filename.to_a[-1]
+        cmd = conf.cluster_cmd_prefix(free:2, max:24, sync:true, name:"idr_#{File.basename(out)}", wd:new_dir) +
+          %W(Rscript #{conf.idr_script}
+             #{File.join("..",p1)}
+             #{File.join("..",p2)})+
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
         puts cmd.join(" ") if conf.verbose
         unless system(*cmd)
           #this can fail "safely", we'll just say in such a case there are no results
           out = ""
         end
-        idr.results = out
+        idr.results = File.join(new_dir,out)
       end
       true
     end
