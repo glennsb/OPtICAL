@@ -271,7 +271,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       if 0 == idr.peak_pair[0].num_peaks.first || 0 == idr.peak_pair[1].num_peaks.first
         idr.results = ""
       else
-        new_dir = "#{idr.peak_pair[0].safe_name}_AND_#{idr.peak_pair[1].safe_name}"
+        new_dir = "#{idr.peak_pair[0].safe_name.mid_truncate(50)}_AND_#{idr.peak_pair[1].safe_name.mid_truncate(50)}"
         new_dir = File.join(output_base,new_dir)
         Dir.mkdir(new_dir) unless Dir.exists?(new_dir)
         out = "idr"
