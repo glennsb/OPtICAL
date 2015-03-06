@@ -145,6 +145,10 @@ class Optical::PeakCaller
   def clean
   end
 
+  def already_called?(output_base,conf)
+    false
+  end
+
   private
 
   def create_peak_bed(peakpath,conf=nil)
