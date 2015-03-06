@@ -39,18 +39,9 @@ class Optical::Sample
     @name
   end
 
-  def create_pseudo_replicates(num_replicates,output_base,conf)
-    return nil unless analysis_ready_bam && File.exists?(analysis_ready_bam.path)
-    return nil unless Dir.exists?(output_base)
-    # shuffle the bam, and ever %num_replicates goes to different file, then sort those
+  def pseudo_replicate_names(num_replicates,output_base)
     rep_base_name = "#{safe_name}_pseudo_replicate"
     outname = File.join(output_base,rep_base_name)
-    cmd = conf.cluster_cmd_prefix(free:10, max:90, sync:true, name:"replicate_#{safe_name}") +
-          %W(optical pseudoReplicateBam -b #{analysis_ready_bam.path} -o #{outname} -r #{num_replicates})
-    puts cmd.join(" ") if conf.verbose
-    unless system(*cmd)
-      return nil
-    end
     replicate_samples = []
     num_replicates.times do |r|
       rep = (r+1).to_s.rjust(2,"0")
@@ -63,6 +54,21 @@ class Optical::Sample
       replicate_samples << rep
     end
     return replicate_samples
+  end
+
+  def create_pseudo_replicates(num_replicates,output_base,conf)
+    return nil unless analysis_ready_bam && File.exists?(analysis_ready_bam.path)
+    return nil unless Dir.exists?(output_base)
+    # shuffle the bam, and ever %num_replicates goes to different file, then sort those
+    rep_base_name = "#{safe_name}_pseudo_replicate"
+    outname = File.join(output_base,rep_base_name)
+    cmd = conf.cluster_cmd_prefix(free:10, max:90, sync:true, name:"replicate_#{safe_name}") +
+          %W(optical pseudoReplicateBam -b #{analysis_ready_bam.path} -o #{outname} -r #{num_replicates})
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      return nil
+    end
+    pseudo_replicate_names(num_replicates,output_base)
   end
 
   def add_error(msg)
