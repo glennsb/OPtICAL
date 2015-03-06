@@ -3,15 +3,18 @@
 # Full license available in LICENSE.txt distributed with this software
 
 require 'pathname'
+require 'securerandom'
 
 class Optical::PeakCaller::Idr < Optical::PeakCaller
   using Optical::StringExensions
 
-  Idr = Struct.new(:peak_pair, :results, :passing_peaks)
+  Idr = Struct.new(:peak_pair, :results, :passing_peaks, :name)
+
+  REQUIRED_REPS = 2
 
   def initialize(name,treatments,controls,opts)
     super
-    raise ArgumentError,"Too few treatments (< 2) for #{@name}" if @treatments.size < 2
+    raise ArgumentError,"Too few treatments (< #{REQUIRED_REPS}) for #{@name}" if @treatments.size < REQUIRED_REPS
     @idr_args = (opts[:idr_args] || "0.3 F p.value hg19").split(/ /)
     @idr_threshold = (opts[:idr_threshold] || 0.01).to_f
     @individual_peaks_limit = (opts[:individual_peaks_limit] || 0)
@@ -45,7 +48,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     idrs = {}
     peakers.combination(2).each do |peak_pair|
       idrs[:individual] ||= []
-      idrs[:individual] << Idr.new(peak_pair,nil)
+      idrs[:individual] << Idr.new(peak_pair,nil,nil,SecureRandom.hex(2))
     end
 
     unless idrs[:individual]
@@ -74,7 +77,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       unless p.find_peaks(output_base,conf)
         on_error.call(p.error())
       else
-        if individual_peakers.include?(p)
+        if individual_peakers.include?(p) && ! p.already_called?(output_base,conf)
           p.trim_peaks!(@individual_peaks_limit,conf) if @individual_peaks_limit
         end
         puts "#{p.num_peaks.first} peaks for #{p}" #we get it here once, to avoid thread errors later
@@ -271,18 +274,23 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       if 0 == idr.peak_pair[0].num_peaks.first || 0 == idr.peak_pair[1].num_peaks.first
         idr.results = ""
       else
-        new_dir = "#{idr.peak_pair[0].safe_name.mid_truncate(50)}_AND_#{idr.peak_pair[1].safe_name.mid_truncate(50)}"
+        new_dir = "idr_#{idr.name}"
         new_dir = File.join(output_base,new_dir)
         Dir.mkdir(new_dir) unless Dir.exists?(new_dir)
         out = "idr"
         p1 = Pathname.new(idr.peak_pair[0].peak_path.first).each_filename.to_a[-1]
         p2 = Pathname.new(idr.peak_pair[1].peak_path.first).each_filename.to_a[-1]
-        cmd = conf.cluster_cmd_prefix(free:2, max:24, sync:true, name:"idr_#{File.basename(out)}", wd:new_dir) +
+        cmd = conf.cluster_cmd_prefix(free:4, max:48, sync:true,
+                                      name:"idr_#{idr.name}_#{File.basename(out)}",
+                                      wd:new_dir) +
           %W(Rscript #{conf.idr_script}
              #{File.join("..",p1)}
              #{File.join("..",p2)})+
           %W(-1 #{out}) + @idr_args + %W(--genometable=#{conf.genome_table_path})
         puts cmd.join(" ") if conf.verbose
+        File.open( File.join(new_dir,"command.txt"), "w") do |o|
+          o.puts cmd.join(" ")
+        end
         unless system(*cmd)
           #this can fail "safely", we'll just say in such a case there are no results
           out = ""
@@ -297,27 +305,46 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     mutex = Mutex.new()
     peakers_mutex = Mutex.new()
     idr_set = []
-    # split each treatment to 2 pseudo replicates, peak each against CONTROL
+
+    # split each treatment to REQUIRED_REPS pseudo replicates, peak each against CONTROL
     problem = !Optical.threader(treatments,on_error) do |t|
-      pseudo_replicates = t.create_pseudo_replicates(2,File.expand_path(output_base),conf)
-      if pseudo_replicates && 2 == pseudo_replicates.size
-        to_idr = []
-        pseudo_replicates.each do |pr|
+      added_already_done = false
+      pseudo_replicate_names = t.pseudo_replicate_names(REQUIRED_REPS,File.expand_path(output_base))
+      if pseudo_replicate_names && REQUIRED_REPS == pseudo_replicate_names.size
+        already_called = []
+        pseudo_replicate_names.each do |pr|
           p = peak_caller().new("idr",[pr],[control],@opts)
-          to_idr << p
-          peakers_mutex.synchronize { peakers << p }
+          already_called << p if p.already_called?(output_base,conf)
         end
-        mutex.synchronize { idr_set << Idr.new(to_idr,nil) }
+        if REQUIRED_REPS == already_called.size then
+          peakers_mutex.synchronize { peakers += already_called }
+          mutex.synchronize { idr_set << Idr.new(already_called,nil,nil,SecureRandom.hex(2)) }
+          added_already_done = true
+        end
+      end
+      if added_already_done
+        true
       else
-        on_error.call("Failed to make pseudo replicates for #{t} #{pseudo_replicates.inspect}")
-        if !t.analysis_ready_bam || !File.exists?(t.analysis_ready_bam.path)
-          on_error.call("#{t} missing analysis ready bam")
-        end
-        if ! Dir.exists?(File.expand_path(output_base))
-          on_error.call("#{t} missing output base dir")
-        end
-        false
-      end # enough PRs
+        pseudo_replicates = t.create_pseudo_replicates(REQUIRED_REPS,File.expand_path(output_base),conf)
+        if pseudo_replicates && REQUIRED_REPS == pseudo_replicates.size
+          to_idr = []
+          pseudo_replicates.each do |pr|
+            p = peak_caller().new("idr",[pr],[control],@opts)
+            to_idr << p
+            peakers_mutex.synchronize { peakers << p }
+          end
+          mutex.synchronize { idr_set << Idr.new(to_idr,nil,nil,SecureRandom.hex(2)) }
+        else
+          on_error.call("Failed to make pseudo replicates for #{t} #{pseudo_replicates.inspect}")
+          if !t.analysis_ready_bam || !File.exists?(t.analysis_ready_bam.path)
+            on_error.call("#{t} missing analysis ready bam")
+          end
+          if ! Dir.exists?(File.expand_path(output_base))
+            on_error.call("#{t} missing output base dir")
+          end
+          false
+        end # enough PRs
+      end #if already called
     end #thread each treatment
     return nil if problem
     return idr_set
