@@ -35,6 +35,25 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     return false
   end
 
+  def already_called?(output_base,conf)
+    full_output_base = File.join(output_base,safe_name)
+    encode_peak_path = full_output_base + MACS_OUTPUT_SUFFICES[:encode_peak]
+    peak_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_bed]
+
+    if File.size?(encode_peak_path) && File.size?(peak_bed_path)
+      @encode_peak_path = encode_peak_path
+      @peak_bed_path = peak_bed_path
+      @control_bdg_path = full_output_base + MACS_OUTPUT_SUFFICES[:control_bdg]
+      @peak_xls_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_xls]
+      @summit_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:summit_bed]
+      @pileup_path = full_output_base + MACS_OUTPUT_SUFFICES[:pileup]
+      @model_pdf_path = full_output_base + MACS_OUTPUT_SUFFICES[:model_pdf]
+      @encode_peak_vs_gene_path = "#{full_out_path}_peak_vs_gene.xls"
+      return true
+    end
+    return false
+  end
+
   def peak_path()
     [@encode_peak_path]
   end
