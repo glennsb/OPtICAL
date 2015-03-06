@@ -7,6 +7,9 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
   attr_accessor :region_peak_path
 
   def find_peaks(output_base,conf)
+    if already_called?(output_base,conf)
+      return true
+    end
     [@treatments[0], @controls[0]].each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam (#{s.analysis_ready_bam}) is missing"
@@ -15,7 +18,8 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
     end
     return false unless run_spp(output_base,conf)
 
-    @region_peak_path = File.join(output_base,"#{part_name(@treatments[0])}_VS_#{part_name(@controls[0])}.regionPeak.gz")
+    @region_peak_path = File.join(output_base,
+                                  "#{part_name(@treatments[0])}_VS_#{part_name(@controls[0])}.regionPeak.gz")
 
     return false unless uncompress_peaks_file(output_base,conf)
 
@@ -37,6 +41,18 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
     end
     @peak_bed_path = create_peak_bed(@region_peak_path)
     return [@peak_bed_path]
+  end
+
+  def already_called?(output_base,conf)
+    region_peak_path = File.join(output_base,
+                                  "#{part_name(@treatments[0])}_VS_#{part_name(@controls[0])}.regionPeak")
+
+    if File.size?(region_peak_path)
+      @region_peak_path = region_peak_path
+      @cross_corelation_plot_path = output_base + "#{part_name(@treatments[0])}.pdf"
+      @peak_bed_path = @region_peak_path.sub(/\.([^.]+$)/,".bed")
+      return true
+    end
   end
 
   private
