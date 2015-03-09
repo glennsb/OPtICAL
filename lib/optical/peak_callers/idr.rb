@@ -184,7 +184,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       puts "Getting #{type} #{count} of final peaks from #{peaker}"
       out = "final_#{type}_#{File.basename(peaker.peak_path.first)}"
       mutex.synchronize { @final_peak_paths[type] = File.join(output_base,out) }
-      cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:2, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
+      cmd = conf.cluster_cmd_prefix(wd:output_base, free:1, max:8, sync:true, name:"idr_final_#{type}_#{safe_name()}") +
         ["sort -k#{score_sort_column()} -n -r #{File.basename(peaker.peak_path.first)} | head -n #{count} | sort -k1,1 -k2,2n -k3,3n > #{out}"]
       puts cmd.join(" ") if conf.verbose
       unless system(*cmd)
@@ -281,7 +281,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
         p1 = Pathname.new(idr.peak_pair[0].peak_path.first).each_filename.to_a[-1]
         p2 = Pathname.new(idr.peak_pair[1].peak_path.first).each_filename.to_a[-1]
         cmd = conf.cluster_cmd_prefix(free:4, max:48, sync:true,
-                                      name:"idr_#{idr.name}_#{File.basename(out)}",
+                                      name:"idr_#{idr.name}",
                                       wd:new_dir) +
           %W(Rscript #{conf.idr_script}
              #{File.join("..",p1)}

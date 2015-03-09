@@ -75,7 +75,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def find_genes_near_peaks(in_path,out_path,conf)
     output = "#{out_path}_peak_vs_gene.xls"
-    cmd = conf.cluster_cmd_prefix(free:1, max:1, sync:true, name:"findgenes_#{safe_name()}") +
+    cmd = conf.cluster_cmd_prefix(free:2, max:8, sync:true, name:"findgenes_#{safe_name()}") +
       %W(find_nearby_genes.pl #{in_path} #{conf.ucsc_refflat_path} #{output}
          #{conf.gene_peak_neighbor_distance} 1,2,3,8)
 
