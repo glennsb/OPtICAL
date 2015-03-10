@@ -313,7 +313,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
       if pseudo_replicate_names && REQUIRED_REPS == pseudo_replicate_names.size
         already_called = []
         pseudo_replicate_names.each do |pr|
-          p = peak_caller().new("idr",[pr],[control],@opts)
+          p = peak_caller().new("intermediate",[pr],[control],@opts)
           already_called << p if p.already_called?(output_base,conf)
         end
         if REQUIRED_REPS == already_called.size then
@@ -329,7 +329,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
         if pseudo_replicates && REQUIRED_REPS == pseudo_replicates.size
           to_idr = []
           pseudo_replicates.each do |pr|
-            p = peak_caller().new("idr",[pr],[control],@opts)
+            p = peak_caller().new("intermediate",[pr],[control],@opts)
             to_idr << p
             peakers_mutex.synchronize { peakers << p }
           end
