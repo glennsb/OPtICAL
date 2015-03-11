@@ -104,7 +104,7 @@ class Optical::ChipAnalysis
          inputs.map {|l| "INPUT=#{l}" }
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
-      @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
+      add_error("Failure in merging a pool of bams in #{name} #{$?.exitstatus}")
       return false
     end
     return true
