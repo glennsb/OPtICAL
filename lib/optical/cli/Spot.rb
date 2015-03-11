@@ -72,11 +72,11 @@ class Optical::CLI::Spot
 
   def additional_cleanup()
     paths = @options.tag_paths
-    paths += @options.input_path if @options.input_path
+    paths << @options.input_path if @options.input_path
     paths.each do |p|
       base = File.basename(p,".bam")
-      %w(bed.start lib.filter.txt.counts).each do |ext|
-        f = File.join(@options.output_prefix,base) + ext
+      %w(bed.starch lib.filter.txt.counts).each do |ext|
+        f = File.join(@options.output_prefix,base) + ".#{ext}"
         begin
           File.delete(f) if File.exists?(f)
         rescue
