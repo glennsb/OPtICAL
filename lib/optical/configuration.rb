@@ -150,6 +150,10 @@ class Optical::Configuration
     end
   end
 
+  def spotters()
+    peak_callers.map {|p| Spotter.new(p.samples_for_spot(@conf))}.uniq
+  end
+
   def output_base=(new_out)
     @output_base = nil
     return unless new_out
