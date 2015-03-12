@@ -25,9 +25,29 @@ class Optical::Spotter
   end
 
   def calculate(conf)
+    @error = ""
+    return true if calculated?()
+
+    Dir.mkdir data_dir() unless Dir.exists?(data_dir())
+
+    cmd = conf.cluster_cmd_prefix(free:2, max:16, sync:true, name:"spot_#{name()}") +
+      %W(optical spot -o #{data_dir()} -c #{conf.hotspot_config})
+    if has_control?()
+      cmd += %W(-i #{@controls.first.analysis_ready_bam.path})
+    end
+    @treatments.each do |t|
+      cmd += %W(-t #{t.analysis_ready_bam.path})
+    end
+    puts cmd.join(" ") if conf.verbose
+    unless system(*cmd)
+      @error = "Failure hotspotting for #{name()} #{$?.exitstatus}"
+      return false
+    end
+    true
   end
 
   def calculated?()
+    File.exists?(spotfile_path())
   end
 
   def score
@@ -46,17 +66,13 @@ class Optical::Spotter
   def has_control?()
     @controls.size > 0 && @controls[0]
   end
-end
-    File.exists?(spotfile_path())
+
+  def data_dir()
     File.join(@base_dir,name)
-    File.exists?(spotfile_path())
-    File.exists?(spotfile_path())
-    File.exists?(spotfile_path())
   end
 
   def spotfile_path()
     base = File.basename(@treatments.first.safe_name,".bam")
     File.join(data_dir(),base) + ".spot.out"
   end
-
-  def data_dir()
+end
