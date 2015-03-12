@@ -51,6 +51,24 @@ class Optical::Spotter
   end
 
   def score
+    return false unless calculated?()
+    read_header = false
+    spot = false
+    IO.foreach(spotfile_path()) do |line|
+      if $. > 2
+        break
+      elsif read_header
+        spot = line.chomp.split(/\s+/).last
+        break
+      elsif line =~ /\s*total tags\s+/
+        read_header = true
+      end
+    end
+    if false == spot
+      return false
+    else
+      return spot
+    end
   end
 
   def name
