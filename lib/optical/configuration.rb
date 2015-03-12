@@ -151,7 +151,7 @@ class Optical::Configuration
   end
 
   def spotters()
-    peak_callers.map {|p| Spotter.new(p.samples_for_spot(@conf))}.uniq
+    peak_callers.map {|p| Optical::Spotter.new(p.samples_for_spot(self))}.uniq
   end
 
   def output_base=(new_out)
