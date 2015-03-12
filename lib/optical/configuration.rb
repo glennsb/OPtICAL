@@ -151,7 +151,17 @@ class Optical::Configuration
   end
 
   def spotters()
-    peak_callers.map {|p| Optical::Spotter.new(p.samples_for_spot(self))}.uniq
+    return @spotters if @spotters
+
+    @spotters = peak_callers.map {|p| Optical::Spotter.new(p.samples_for_spot(self))}.uniq
+    peak_callers.each do |p|
+      target = Optical::Spotter.new(p.samples_for_spot(self))
+      sp = @spotters.detect do |s|
+        s.eql?(target)
+      end
+      p.spotter = sp if sp
+    end
+    return @spotters
   end
 
   def output_base=(new_out)
