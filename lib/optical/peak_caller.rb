@@ -30,6 +30,13 @@ class Optical::PeakCaller
     @errors = []
   end
 
+  def samples_for_spot(conf)
+    {
+      treatments:@treatments,
+      controls:@controls
+    }
+  end
+
   def to_s
     controls_names = if @controls && nil != @controls[0]
                        @controls[0]

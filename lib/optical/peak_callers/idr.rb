@@ -23,6 +23,16 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
     @controls_name = (@opts.delete(:control_name) || @controls.first.safe_name).tr(" ",'_').tr("/","_")
   end
 
+  def samples_for_spot(conf)
+    if nil != @controls && @controls.size > 0
+      control = conf.sample(@controls.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")
+    end
+    {
+      treatments:[conf.sample(@treatments.map {|s| s.name}.join(" and ").tr(" ","_") + "_pooled")],
+      controls:[control]
+    }
+  end
+
   def to_s
     "#{@name} of #{@treatments_name} vs #{@controls_name}"
   end
