@@ -113,6 +113,7 @@ class Optical::ChipAnalysis
   end
 
   def generate_spot_scores()
+    return true unless @conf.hotspot_config
     # we'll want the unique set of treatment/inputs from all peakers
     # for IDRs that means the final pooled
     threader(@conf.spotters()) do |s|
