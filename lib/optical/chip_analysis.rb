@@ -8,7 +8,8 @@ class Optical::ChipAnalysis
     align:"01_alignment",
     qc:"00_fastqc",
     vis:"02_visualization",
-    peak:"03_peaks"
+    peak:"03_peaks",
+    spot:"04_hotspots"
   }
 
   attr_reader :errs
@@ -27,6 +28,7 @@ class Optical::ChipAnalysis
       prep_samples_for_peak_calling() &&
       pool_any_samples_for_peak_calling() &&
       call_peaks() &&
+      generate_spot_scores() &&
       create_igv_session() &&
       create_final_report() &&
       @errs.empty?
@@ -108,6 +110,20 @@ class Optical::ChipAnalysis
       return false
     end
     return true
+  end
+
+  def generate_spot_scores()
+    # we'll want the unique set of treatment/inputs from all peakers
+    # for IDRs that means the final pooled
+    threader(@conf.spotters()) do |s|
+      s.base_dir = DIRS[:spot]
+      calculate_spot(s)
+    end
+  end
+
+  def calculate_spot(s)
+    add_error("Spot generation not implemented")
+    false
   end
 
   def call_peaks()
