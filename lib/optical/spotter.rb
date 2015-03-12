@@ -4,6 +4,7 @@
 
 class Optical::Spotter
 
+  attr_accessor :error, :treatments, :controls, :base_dir
   attr_writer :base_dir
 
   def initialize(opts)
@@ -12,8 +13,15 @@ class Optical::Spotter
     @base_dir = Dir.pwd
   end
 
-  def ==(b)
-    self.treatments == b.treatments && self.controls == b.controls
+  def eql?(b)
+    self.class == b.class &&
+    self.treatments == b.treatments &&
+    self.controls == b.controls &&
+    self.base_dir == b.base_dir
+  end
+
+  def hash()
+    [name(), @base_dir].hash
   end
 
   def calculate(conf)
