@@ -8,7 +8,8 @@ class Optical::ChipAnalysis
     align:"01_alignment",
     qc:"00_fastqc",
     vis:"02_visualization",
-    peak:"03_peaks"
+    peak:"03_peaks",
+    spot:"04_hotspots"
   }
 
   attr_reader :errs
@@ -27,6 +28,7 @@ class Optical::ChipAnalysis
       prep_samples_for_peak_calling() &&
       pool_any_samples_for_peak_calling() &&
       call_peaks() &&
+      generate_spot_scores() &&
       create_igv_session() &&
       create_final_report() &&
       @errs.empty?
@@ -104,10 +106,26 @@ class Optical::ChipAnalysis
          inputs.map {|l| "INPUT=#{l}" }
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
-      @errors << "Failure in merging a pool of bams in #{name} #{$?.exitstatus}"
+      add_error("Failure in merging a pool of bams in #{name} #{$?.exitstatus}")
       return false
     end
     return true
+  end
+
+  def generate_spot_scores()
+    return true unless @conf.hotspot_config
+    # we'll want the unique set of treatment/inputs from all peakers
+    # for IDRs that means the final pooled
+    threader(@conf.spotters()) do |s|
+      s.base_dir = DIRS[:spot]
+      calculate_spot(s)
+    end
+  end
+
+  def calculate_spot(s)
+    return true if s.calculate(@conf)
+    add_error(s.error())
+    false
   end
 
   def call_peaks()

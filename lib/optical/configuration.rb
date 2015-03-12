@@ -53,7 +53,7 @@ class Optical::Configuration
     :alignment_filter, :remove_duplicates,
     :default_fragment_size, :wig_step_size, :genome_table_path, :igv_reference,
     :gene_peak_neighbor_distance, :ucsc_refflat_path, :idr_script,
-    :idr_plot_script, :alignment_masking_bed_path
+    :idr_plot_script, :alignment_masking_bed_path, :hotspot_config
 
   attr_accessor :verbose
 
@@ -76,6 +76,7 @@ class Optical::Configuration
     @ucsc_refflat_path = get_path_conf(:ucsc_refflat,settings)
     @idr_script = get_path_conf(:idr_script,settings)
     @idr_plot_script = get_path_conf(:idr_plot_script,settings)
+    @hotspot_config = get_path_conf(:hotspot_config,settings)
     @igv_reference = get_path_conf(:igv_reference,settings)
     @alignment_masking_bed_path = get_path_conf(:alignment_masking_bed,settings)
     @gene_peak_neighbor_distance = settings.fetch(:gene_peak_neighbor_distance,10000)
@@ -147,6 +148,20 @@ class Optical::Configuration
     @callers.each do |c|
       yield c
     end
+  end
+
+  def spotters()
+    return @spotters if @spotters
+
+    @spotters = peak_callers.map {|p| Optical::Spotter.new(p.samples_for_spot(self))}.uniq
+    peak_callers.each do |p|
+      target = Optical::Spotter.new(p.samples_for_spot(self))
+      sp = @spotters.detect do |s|
+        s.eql?(target)
+      end
+      p.spotter = sp if sp
+    end
+    return @spotters
   end
 
   def output_base=(new_out)

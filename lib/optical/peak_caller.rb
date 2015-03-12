@@ -18,6 +18,7 @@ class Optical::PeakCaller
   end
 
   attr_reader :cmd_args, :name, :treatments, :controls
+  attr_accessor :spotter
 
   def initialize(name,treatments,controls,opts)
     @name = name
@@ -28,6 +29,13 @@ class Optical::PeakCaller
       @controls = []
     end
     @errors = []
+  end
+
+  def samples_for_spot(conf)
+    {
+      treatments:@treatments,
+      controls:@controls
+    }
   end
 
   def to_s

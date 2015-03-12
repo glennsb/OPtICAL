@@ -64,7 +64,7 @@ class Optical::FinalReport
   end
 
   def report_peaks()
-    lines = [['Name', 'Caller', 'Type', 'NSC', 'RSC', 'Num Peaks', 'Width Median',
+    lines = [['Name', 'Caller', 'Type', 'NSC', 'RSC', 'SPOT', 'Num Peaks', 'Width Median',
                 'Width Mean', 'Width SD', 'Enrichment Mean', 'Enrichment SD']]
     counts_headers = get_library_complexity_count_headers() - [:multiple_hit_reads, :unmapped_reads]
     lines[0] += counts_headers.map{|s| "treatment #{s}".tr("_"," ")}
@@ -83,7 +83,12 @@ class Optical::FinalReport
           line << "*not idr*"
         end
         (nsc,rsc) = p.load_cross_correlation()
-        line += [nsc,rsc, md_path_link(paths[i],nums[i].to_s)]
+        spot = nil
+        if s = p.spotter
+          spot = s.score()
+          spot = "" if false == spot
+        end
+        line += [nsc,rsc, spot, md_path_link(paths[i],nums[i].to_s)]
         if File.exists?(paths[i])
           pipe = IO.popen(%W(summarize_peaks_width_enrichment.R #{paths[i].shellescape}),:err=>"/dev/null")
           data = pipe.readlines.last
