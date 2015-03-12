@@ -46,3 +46,11 @@ class Optical::Spotter
   def data_dir()
   end
 end
+    File.join(@base_dir,name)
+  end
+
+  def spotfile_path()
+    base = File.basename(@treatments.first.safe_name,".bam")
+    File.join(data_dir(),base) + ".spot.out"
+  end
+end
