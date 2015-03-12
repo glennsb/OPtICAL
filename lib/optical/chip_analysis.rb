@@ -122,7 +122,8 @@ class Optical::ChipAnalysis
   end
 
   def calculate_spot(s)
-    add_error("Spot generation not implemented")
+    return true if s.calculate(@conf)
+    add_error(s.error())
     false
   end
 
