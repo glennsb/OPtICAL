@@ -35,7 +35,7 @@ class Optical::Spotter
 
   def name
     name = @treatments.first.safe_name.tr(" ",'_').tr("/","_")
-    if @controls.size > 0 && @controls[0]
+    if has_control?()
       name += "_" + @controls.first.safe_name.tr(" ",'_').tr("/","_")
     end
     name
@@ -43,14 +43,20 @@ class Optical::Spotter
 
   private
 
-  def data_dir()
+  def has_control?()
+    @controls.size > 0 && @controls[0]
   end
 end
+    File.exists?(spotfile_path())
     File.join(@base_dir,name)
+    File.exists?(spotfile_path())
+    File.exists?(spotfile_path())
+    File.exists?(spotfile_path())
   end
 
   def spotfile_path()
     base = File.basename(@treatments.first.safe_name,".bam")
     File.join(data_dir(),base) + ".spot.out"
   end
-end
+
+  def data_dir()
