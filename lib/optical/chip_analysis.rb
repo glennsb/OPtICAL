@@ -328,7 +328,8 @@ class Optical::ChipAnalysis
   end
 
   def bwa_aln(lib_part,is_paired,lib_bam,sample_safe_name)
-    cmd = @conf.cluster_cmd_prefix(free:1, max:48, sync:true, name:"bwa_#{sample_safe_name}", threads:@conf.bwa_threads) +
+    cmd = @conf.cluster_cmd_prefix(free:8, max:48, sync:true, name:"bwa_#{sample_safe_name}",
+                                   threads:@conf.bwa_threads) +
       %W(/bin/bash -o pipefail -o errexit -c)
     aln_threads = if @conf.bwa_threads > 1
                     @conf.bwa_threads/2

@@ -79,7 +79,7 @@ class Optical::PeakCaller::Spp < Optical::PeakCaller
           else
             "run_spp.R"
           end
-    cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"spp_#{safe_name()}") +
+    cmd = conf.cluster_cmd_prefix(wd:output_base, free:5, max:16, sync:true, name:"spp_#{safe_name()}") +
       %W(#{spp} -c=#{@treatments[0].analysis_ready_bam.path.shellescape}
          -i=#{@controls[0].analysis_ready_bam.path.shellescape} -odir=. -savr -savp -rf) + @cmd_args
 

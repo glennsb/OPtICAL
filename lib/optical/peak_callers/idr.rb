@@ -290,7 +290,7 @@ class Optical::PeakCaller::Idr < Optical::PeakCaller
         out = "idr"
         p1 = Pathname.new(idr.peak_pair[0].peak_path.first).each_filename.to_a[-1]
         p2 = Pathname.new(idr.peak_pair[1].peak_path.first).each_filename.to_a[-1]
-        cmd = conf.cluster_cmd_prefix(free:4, max:48, sync:true,
+        cmd = conf.cluster_cmd_prefix(free:4, max:64, sync:true,
                                       name:"idr_#{idr.name}",
                                       wd:new_dir) +
           %W(Rscript #{conf.idr_script}
