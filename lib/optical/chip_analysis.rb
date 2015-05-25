@@ -90,6 +90,7 @@ class Optical::ChipAnalysis
     if 1 == samples.size then
       require 'fileutils'
       FileUtils.ln_s(samples[0].analysis_ready_bam.path,pooled_path) unless File.exists?(pooled_path)
+      FileUtils.ln_s(samples[0].analysis_ready_bam.path+".bai",pooled_path+".bai") unless File.exists?(pooled_path+".bai")
     else
       return nil unless merge_bams_to(samples.map{|c| c.analysis_ready_bam.path},pooled_path)
     end
@@ -102,7 +103,7 @@ class Optical::ChipAnalysis
   def merge_bams_to(inputs,output)
     cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{File.basename(output)}") +
       %W(picard MergeSamFiles OUTPUT=#{output} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
-         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
+         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate CREATE_INDEX=true) +
          inputs.map {|l| "INPUT=#{l}" }
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
