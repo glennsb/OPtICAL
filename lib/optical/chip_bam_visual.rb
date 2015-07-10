@@ -2,6 +2,8 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+require 'tempfile'
+
 class Optical::ChipBamVisual
   FRAGMENT_SIZE_SUFFIX = "_estimated_size.txt"
 
@@ -145,14 +147,17 @@ class Optical::ChipBamVisual
     trackopts = <<-EOF
 name="#{base}_raw.bedgraph" description="#{base}_raw.bedgraph" visibility=full color="#{@color}"
     EOF
-    cov = "genomeCoverageBed -i #{out_prefix}_tmp.bed -g #{@conf.genome_table_path} -bg -trackline -trackopts '#{trackopts.chomp}'"
-    cov += " > #{out_path}"
-    cmd << cov
+    cov = Tempfile.new("cov.sh",File.dirname(File.dirname(out_prefix)))
+    cov.write "genomeCoverageBed -i #{out_prefix}_tmp.bed -g #{@conf.genome_table_path} -bg -trackline -trackopts '#{trackopts.chomp}'"
+    cov.write " > #{out_path}"
+    cov.close
+    cmd << cov.path
     puts cmd.join(" ") if @conf.verbose
     unless system(*cmd)
       @errors << "Failure creating bedgraph for #{@bam} #{$?.exitstatus}"
       return false
     end
+    cov.unlink
     @raw_bedgraph_path = "#{out_prefix}_raw.bedgraph"
     return true
   end
