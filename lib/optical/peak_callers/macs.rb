@@ -12,6 +12,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
 
   def find_peaks(output_base,conf)
     full_output_base = File.join(output_base,safe_name)
+    short_output_base = File.join(output_base,fs_name())
     (@treatments + @controls).compact.each do |s|
       unless sample_ready?(s)
         @errors << "The sample #{s} is not ready, the bam (#{s.analysis_ready_bam}) is missing"
@@ -19,20 +20,38 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
       end
     end
     if run_macs(output_base,conf)
-      @control_bdg_path = full_output_base + MACS_OUTPUT_SUFFICES[:control_bdg]
-      @peak_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_bed]
-      @encode_peak_path = full_output_base + MACS_OUTPUT_SUFFICES[:encode_peak]
-      @peak_xls_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_xls]
-      @summit_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:summit_bed]
-      @pileup_path = full_output_base + MACS_OUTPUT_SUFFICES[:pileup]
+      @control_bdg_path = short_output_base + MACS_OUTPUT_SUFFICES[:control_bdg]
+      @peak_bed_path = short_output_base + MACS_OUTPUT_SUFFICES[:peak_bed]
+      @encode_peak_path = short_output_base + MACS_OUTPUT_SUFFICES[:encode_peak]
+      @peak_xls_path = short_output_base + MACS_OUTPUT_SUFFICES[:peak_xls]
+      @summit_bed_path = short_output_base + MACS_OUTPUT_SUFFICES[:summit_bed]
+      @pileup_path = short_output_base + MACS_OUTPUT_SUFFICES[:pileup]
 
-      return model_to_pdf(full_output_base,conf) &&
+      return model_to_pdf(short_output_base,conf) &&
         strip_name_prefix_from_peak_names(conf) &&
         add_track_header_to_file(@peak_bed_path,conf) &&
-        (@encode_peak_vs_gene_path = find_genes_near_peaks(@encode_peak_path,full_output_base,conf)) &&
-        calculate_cross_correlation(output_base,conf)
+        (@encode_peak_vs_gene_path = find_genes_near_peaks(@encode_peak_path,short_output_base,conf)) &&
+        calculate_cross_correlation(output_base,conf) &&
+        fix_names(short_output_base,full_output_base)
     end
     return false
+  end
+
+  def fix_names(short,full)
+    begin 
+      File.rename(@control_bdg_path ,full + MACS_OUTPUT_SUFFICES[:control_bdg])
+      File.rename(@peak_bed_path ,full + MACS_OUTPUT_SUFFICES[:peak_bed])
+      File.rename(@encode_peak_path ,full + MACS_OUTPUT_SUFFICES[:encode_peak])
+      File.rename(@peak_xls_path ,full + MACS_OUTPUT_SUFFICES[:peak_xls])
+      File.rename(@summit_bed_path ,full + MACS_OUTPUT_SUFFICES[:summit_bed])
+      File.rename(@pileup_path ,full + MACS_OUTPUT_SUFFICES[:pileup])
+      File.rename(short + "_model.pdf",full + "_model.pdf")
+      File.rename(@encode_peak_vs_gene_path , full + "_peak_vs_gene.xls")
+    rescue
+      @errors << "Trouble fixing file names for #{self}"
+      return false
+    end
+    return true
   end
 
   def already_called?(output_base,conf)
@@ -106,7 +125,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
 
   def strip_name_prefix_from_peak_names(conf)
     cmd = conf.cluster_cmd_prefix(free:2, max:4, sync:true, name:"name_strip_#{safe_name()}") +
-      %W(sed -i '/^chr/ s/#{safe_name()}_//') +
+      %W(sed -i '/^chr/ s/#{fs_name()}_//') +
       [@peak_bed_path, @encode_peak_path, @peak_xls_path, @summit_bed_path].keep_if do |f|
         File.exists?(f)
       end
@@ -146,7 +165,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
    cmd = conf.cluster_cmd_prefix(wd:output_base, free:8, max:32, sync:true,
                                  name:"#{safe_name()}") +
       %W(macs2 callpeak -f BAM -t) + @treatments.map{|t| t.analysis_ready_bam.path} +
-         controls_cmd + %W(-n #{safe_name()}
+         controls_cmd + %W(-n #{fs_name()}
          --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
 
     puts cmd.join(" ") if conf.verbose
