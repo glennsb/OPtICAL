@@ -113,7 +113,7 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
 
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
-      @errors << "Failed to strip peak name prefix of macs for #{self}: #{$?.exitstatus}"
+      @errors << "Failed to strip peak name prefix of macs for #{self} using: '#{cmd}': #{$?.exitstatus}"
       return false
     end
     return true
@@ -121,8 +121,9 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
 
   def model_to_pdf(output_base,conf)
     return true if @cmd_args.include?("--nomodel")
-    rscript = "#{safe_name()}#{MACS_OUTPUT_SUFFICES[:model_r]}"
-    cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4, sync:true, name:"r_#{safe_name()}") +
+    rscript = "#{fs_name()}#{MACS_OUTPUT_SUFFICES[:model_r]}"
+    cmd = conf.cluster_cmd_prefix(wd:File.dirname(output_base), free:2, max:4,
+                                  sync:true, name:"r_#{safe_name()}") +
       %W(Rscript #{rscript})
 
     puts cmd.join(" ") if conf.verbose
@@ -142,14 +143,15 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
                    else
                      []
                    end
-   cmd = conf.cluster_cmd_prefix(wd:output_base, free:8, max:32, sync:true, name:"#{safe_name()}") +
+   cmd = conf.cluster_cmd_prefix(wd:output_base, free:8, max:32, sync:true,
+                                 name:"#{safe_name()}") +
       %W(macs2 callpeak -f BAM -t) + @treatments.map{|t| t.analysis_ready_bam.path} +
          controls_cmd + %W(-n #{safe_name()}
          --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
 
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
-      @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}"
+      @errors << "Failed to execute macs for #{self}: #{$?.exitstatus}: #{cmd.join(" ")}"
       return false
     end
     return true
