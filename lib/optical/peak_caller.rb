@@ -2,6 +2,8 @@
 # Distributed under a BSD 3-Clause
 # Full license available in LICENSE.txt distributed with this software
 
+require 'securerandom'
+
 class Optical::PeakCaller
   using Optical::StringExensions
   include Optical::Checkpointable
@@ -54,6 +56,11 @@ class Optical::PeakCaller
     else
                        name
     end
+  end
+
+  def fs_name
+    @fs_name ||= SecureRandom.hex(3)
+    @fs_name
   end
 
   def find_peaks(output_base,conf)
