@@ -62,7 +62,11 @@ class Optical::Sample
     # shuffle the bam, and ever %num_replicates goes to different file, then sort those
     rep_base_name = "#{safe_name}_pseudo_replicate"
     outname = File.join(output_base,rep_base_name)
-    cmd = conf.cluster_cmd_prefix(free:10, max:90, sync:true, name:"replicate_#{safe_name}") +
+    free = 10
+    if analysis_ready_bam.num_alignments >= 100000000
+      free = 100
+    end
+    cmd = conf.cluster_cmd_prefix(free:free, max:90, sync:true, name:"replicate_#{safe_name}") +
           %W(optical pseudoReplicateBam -b #{analysis_ready_bam.path} -o #{outname} -r #{num_replicates})
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
