@@ -109,7 +109,7 @@ class Optical::Configuration
     prefix = []
     if @use_qsub
       job_opts = {sync:true, free:1, max:2, wd:'-cwd'}.merge(opts)
-      prefix = %W(qsub -b y -j y -V -l virtual_free=#{job_opts[:free]}G,h_vmem=#{job_opts[:max]}G)
+      prefix = %W(qsub -b y -j y -V -l mem_free=#{job_opts[:free]}G,virtual_free=#{job_opts[:free]}G,h_vmem=#{job_opts[:max]}G)
       prefix += case job_opts[:wd]
                 when '-cwd'
                   %W(-o logs -cwd)
