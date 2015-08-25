@@ -181,13 +181,13 @@ track name="#{name}" description="#{name}" visibility=full color="#{conf.random_
 
   def run_macs(output_base,conf)
     controls_cmd = if @controls && @controls.size > 0 && nil != @controls[0]
-                     %W(-c #{@controls[0].analysis_ready_bam.path})
+                     %W(-c #{bam_path(@controls[0].analysis_ready_bam,conf)})
                    else
                      []
                    end
    cmd = conf.cluster_cmd_prefix(wd:output_base, free:8, max:32, sync:true,
                                  name:"#{safe_name()}") +
-      %W(macs2 callpeak -f BAM -t) + @treatments.map{|t| t.analysis_ready_bam.path} +
+      %W(macs2 callpeak -f BAM -t) + @treatments.map{|t| bam_path(t.analysis_ready_bam,conf)} +
          controls_cmd + %W(-n #{fs_name()}
          --bw #{@treatments[0].analysis_ready_bam.fragment_size}) + @cmd_args
 

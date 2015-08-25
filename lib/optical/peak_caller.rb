@@ -3,6 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 require 'securerandom'
+require 'pathname'
 
 class Optical::PeakCaller
   using Optical::StringExensions
@@ -76,7 +77,7 @@ class Optical::PeakCaller
             "run_spp.R"
           end
     cmd = conf.cluster_cmd_prefix(wd:output_base, free:4, max:8, sync:true, name:"crosscorr_#{safe_name()}") +
-      %W(#{spp} -c=#{@treatments[0].analysis_ready_bam.path.shellescape} -rf -savp -out=strand_cross_correlation.txt)
+      %W(#{spp} -c=#{bam_path(@treatments[0].analysis_ready_bam,conf).shellescape} -rf -savp -out=strand_cross_correlation.txt)
     puts cmd.join(" ") if conf.verbose
     unless system(*cmd)
       @errors << "Failed to execute xcorspp for #{self}: #{$?.exitstatus}"
@@ -175,6 +176,14 @@ class Optical::PeakCaller
     end
     if system(*cmd)
       return outpath
+    end
+  end
+
+  def bam_path(b,conf)
+    if Pathname.new(b.path).absolute?
+      b.path
+    else
+      File.join(conf.output_base,b.path)
     end
   end
 end
