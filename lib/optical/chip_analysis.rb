@@ -68,7 +68,7 @@ class Optical::ChipAnalysis
     threader(poolable_sets_from_peak_callers.each) do |name,set|
       pool = Optical::Sample.new(name,[])
       pool.checkpointed(get_sample_dir_in_stage(pool.safe_name,:align,true)) do |outbase,s|
-        s.analysis_ready_bam = pool_bams_of_samples(set,File.join(@conf.output_base,outbase,"#{name}.bam"))
+        s.analysis_ready_bam = pool_bams_of_samples(set,File.join(".",outbase,"#{name}.bam"))
         return false unless s.analysis_ready_bam
         s.qc_path = qc_report_for_bam(s.analysis_ready_bam.path,s.has_paired?)
       end
@@ -168,7 +168,7 @@ class Optical::ChipAnalysis
         add_error("Failure in fastqc of #{fastq} for #{sample.name} #{$?.exitstatus}")
         return false
       else
-        fastqc_base = "#{File.join(@conf.output_base,outbase,
+        fastqc_base = "#{File.join(".",outbase,
                          File.basename(File.basename(fastq,".gz"),".fastq"))}_fastqc"
         lib.add_fastqc_path("#{fastqc_base}.html")
         begin
@@ -317,7 +317,7 @@ class Optical::ChipAnalysis
       return false
     end
 
-    sample.analysis_ready_bam = Optical::Bam.new(File.join(@conf.output_base,final_bam),sample.has_paired?)
+    sample.analysis_ready_bam = Optical::Bam.new(File.join(".",final_bam),sample.has_paired?)
     sample.analysis_ready_bam.fragment_size = @conf.default_fragment_size
     sample.analysis_ready_bam.dupes_removed = @conf.remove_duplicates
     if ! File.exists?(sample.analysis_ready_bam.path)
@@ -363,7 +363,7 @@ class Optical::ChipAnalysis
       add_error("Failure in bwa of library part for #{sample_safe_name} #{$?.exitstatus}")
       return false
     end
-    lib_part.bam_path = File.join(@conf.output_base,lib_bam)
+    lib_part.bam_path = File.join(".",lib_bam)
     return true
   end
 
