@@ -3,6 +3,7 @@
 # Full license available in LICENSE.txt distributed with this software
 
 class Optical::Spotter
+  using Optical::StringExensions
 
   attr_accessor :error, :treatments, :controls, :base_dir
   attr_writer :base_dir
@@ -76,7 +77,7 @@ class Optical::Spotter
     if has_control?()
       name += "_" + @controls.first.safe_name.tr(" ",'_').tr("/","_")
     end
-    name
+    name.mid_truncate(200)
   end
 
   private
@@ -86,7 +87,7 @@ class Optical::Spotter
   end
 
   def data_dir()
-    File.join(@base_dir,name)
+    File.join(@base_dir,name())
   end
 
   def spotfile_path()
