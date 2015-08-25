@@ -11,7 +11,7 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
     :pileup_path, :model_pdf_path, :encode_peak_vs_gene_path
 
   def find_peaks(output_base,conf)
-    full_output_base = File.join(output_base,safe_name)
+    full_output_base = File.join(output_base,safe_name())
     short_output_base = File.join(output_base,fs_name())
     (@treatments + @controls).compact.each do |s|
       unless sample_ready?(s)
@@ -38,24 +38,47 @@ class Optical::PeakCaller::Macs < Optical::PeakCaller
   end
 
   def fix_names(short,full)
-    begin 
-      File.rename(@control_bdg_path ,full + MACS_OUTPUT_SUFFICES[:control_bdg])
-      File.rename(@peak_bed_path ,full + MACS_OUTPUT_SUFFICES[:peak_bed])
-      File.rename(@encode_peak_path ,full + MACS_OUTPUT_SUFFICES[:encode_peak])
-      File.rename(@peak_xls_path ,full + MACS_OUTPUT_SUFFICES[:peak_xls])
-      File.rename(@summit_bed_path ,full + MACS_OUTPUT_SUFFICES[:summit_bed])
-      File.rename(@pileup_path ,full + MACS_OUTPUT_SUFFICES[:pileup])
-      File.rename(short + "_model.pdf",full + "_model.pdf")
-      File.rename(@encode_peak_vs_gene_path , full + "_peak_vs_gene.xls")
-    rescue
-      @errors << "Trouble fixing file names for #{self}"
+    begin
+      if File.size?(@control_bdg_path)
+        File.rename(@control_bdg_path ,full + MACS_OUTPUT_SUFFICES[:control_bdg])
+        @control_bdg_path = full + MACS_OUTPUT_SUFFICES[:control_bdg]
+      end
+      if File.size?(@peak_bed_path)
+        File.rename(@peak_bed_path ,full + MACS_OUTPUT_SUFFICES[:peak_bed])
+        @peak_bed_path = full + MACS_OUTPUT_SUFFICES[:peak_bed]
+      end
+      if File.size?(@encode_peak_path )
+        File.rename(@encode_peak_path ,full + MACS_OUTPUT_SUFFICES[:encode_peak])
+        @encode_peak_path = full + MACS_OUTPUT_SUFFICES[:encode_peak]
+      end
+      if File.size?(@peak_xls_path)
+        File.rename(@peak_xls_path ,full + MACS_OUTPUT_SUFFICES[:peak_xls])
+        @peak_xls_path = full + MACS_OUTPUT_SUFFICES[:peak_xls]
+      end
+      if File.size?(@summit_bed_path)
+        File.rename(@summit_bed_path ,full + MACS_OUTPUT_SUFFICES[:summit_bed])
+        @summit_bed_path = full + MACS_OUTPUT_SUFFICES[:summit_bed]
+      end
+      if File.size?(@pileup_path)
+        File.rename(@pileup_path ,full + MACS_OUTPUT_SUFFICES[:pileup])
+        @pileup_path = full + MACS_OUTPUT_SUFFICES[:pileup]
+      end
+      if File.size?(short + "_model.pdf")
+        File.rename(short + "_model.pdf",full + "_model.pdf")
+      end
+      if File.size?(@encode_peak_vs_gene_path)
+        File.rename(@encode_peak_vs_gene_path , full + "_peak_vs_gene.xls")
+        @encode_peak_vs_gene_path = full + "_peak_vs_gene.xls"
+      end
+    rescue Exception => e
+      @errors << "Trouble fixing file names for #{self}: #{e} - #{e.message}"
       return false
     end
     return true
   end
 
   def already_called?(output_base,conf)
-    full_output_base = File.join(output_base,safe_name)
+    full_output_base = File.join(output_base,safe_name())
     encode_peak_path = full_output_base + MACS_OUTPUT_SUFFICES[:encode_peak]
     peak_bed_path = full_output_base + MACS_OUTPUT_SUFFICES[:peak_bed]
 
