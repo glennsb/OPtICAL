@@ -56,7 +56,7 @@ class Optical::PeakCaller
                        "#{name}_vs_#{@controls[0].safe_name}"
     else
                        name
-    end
+    end.mid_truncate(200)
   end
 
   def fs_name
