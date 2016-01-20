@@ -341,7 +341,7 @@ class Optical::ChipAnalysis
     bwa_mode = "samse"
     if is_paired
       bwa_mode = "sampe"
-      name_sort = "-n"
+      #name_sort = "-n"
     end
 
     bwa_cmd = "bwa #{bwa_mode} " +
