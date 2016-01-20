@@ -347,8 +347,18 @@ class Optical::ChipAnalysis
     bwa_cmd = "bwa #{bwa_mode} " +
       "-r \\\"@RG\\tID:#{sample_safe_name}_#{lib_part.run}_#{lib_part.lane}\\tSM:#{sample_safe_name}\\tPL:Illumina\\tPU:#{lib_part.lane}\\\" " +
       @conf.reference_path
-    lib_part.fastq_paths.each do |fp|
-      aln = "bwa aln -t #{aln_threads} #{@conf.reference_path} #{fp}"
+    lib_part.fastq_paths.each_with_index do |fp,i|
+      pre = ""
+      post = ""
+      if fp =~ /\.xz$/
+        #pre ="(t=`mktemp`;"
+        #post = " && rm ${t})"
+        #lib_part.fastq_paths[i] = "<(xzcat #{fp})"
+        #fp = "<(xzcat #{fp} || rm -f ${t})"
+        lib_part.fastq_paths[i] = "<(xzcat #{fp})"
+        fp = "<(xzcat #{fp})"
+      end
+      aln = "#{pre}bwa aln -t #{aln_threads} #{@conf.reference_path} #{fp}#{post}"
       bwa_cmd += " <(#{aln})"
     end
     bwa_cmd += " #{lib_part.fastq_paths.join(" ")}"
