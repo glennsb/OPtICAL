@@ -70,7 +70,7 @@ class Optical::ChipAnalysis
       pool.checkpointed(get_sample_dir_in_stage(pool.safe_name,:align,true)) do |outbase,s|
         s.analysis_ready_bam = pool_bams_of_samples(set,File.join(".",outbase,"#{name}.bam"))
         return false unless s.analysis_ready_bam
-        s.qc_path = qc_report_for_bam(s.analysis_ready_bam.path,s.has_paired?)
+        s.qc_path = qc_report_for_bam(s.analysis_ready_bam.path,s.analysis_ready_bam.paired?)
       end
       prepare_visualization_for_sample(pool)
       c_mutex.synchronize { @conf.add_sample(name,pool) }
@@ -79,7 +79,7 @@ class Optical::ChipAnalysis
         if File.exists?(qc_file)
           pool.qc_path = qc_file
         else
-          pool.qc_path = qc_report_for_bam(pool.analysis_ready_bam.path,pool.has_paired?)
+          pool.qc_path = qc_report_for_bam(pool.analysis_ready_bam.path,pool.analysis_ready_bam.paired?)
         end
       end
       nil != pool.qc_path
@@ -429,7 +429,7 @@ class Optical::ChipAnalysis
   end
 
   def merge_library_parts(lib,final_bam,sample_safe_name)
-    sort = lib.is_paired? ? "queryname" : "coordinate" 
+    sort = lib.is_paired? ? "queryname" : "coordinate"
     cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{sample_safe_name}") +
       %W(picard MergeSamFiles OUTPUT=#{final_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
          COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=false SORT_ORDER=#{sort}) +
