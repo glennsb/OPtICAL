@@ -283,7 +283,7 @@ class Optical::ChipAnalysis
       cmd = @conf.cluster_cmd_prefix(free:1, max:12, sync:true, name:"trim_pairs_#{sample.safe_name}") +
         %W(/bin/bash -o pipefail -o errexit -c)
       filt = "samtools view -h #{tmp_bam} | awk -F '\\t' '{if ((\\$1 ~ /^@/) || (\\$2==83) || (\\$2==99)) print \\$0}'" +
-        "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
+        "| samtools view -Shu - | samtools sort -O bam -@ 2 -m 4G -T /tmp/#{sample.safe_name}_#{$$} > #{final_bam}"
       cmd << "\"#{filt}\""
       puts cmd.join(" ") if @conf.verbose
       unless system(*cmd)
@@ -337,11 +337,9 @@ class Optical::ChipAnalysis
                   else
                     1
                   end
-    name_sort = ""
     bwa_mode = "samse"
     if is_paired
       bwa_mode = "sampe"
-      #name_sort = "-n"
     end
 
     bwa_cmd = "bwa #{bwa_mode} " +
@@ -365,7 +363,7 @@ class Optical::ChipAnalysis
     downsample = if lib_part[:downsample]
                    " -s #{rand(0..1000)}.#{lib_part[:downsample]}"
                  end
-    bwa_cmd += "| samtools view #{downsample} -Shu - | samtools sort #{name_sort} -@ 2 -m 4G -o - /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
+    bwa_cmd += "| samtools view #{downsample} -Shu - | samtools sort -@ 2 -m 8G -O bam -T /tmp/#{sample_safe_name}_#{$$} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
 
     puts cmd.join(" ") if @conf.verbose
@@ -385,7 +383,7 @@ class Optical::ChipAnalysis
       @conf.reference_path
       #TODO update for libray parts
     bwa_cmd += " #{lib.parts.fastq_paths.join(" ")} "
-    bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 4G -o - /tmp/#{sample.safe_name}_#{i} > #{lib_bam}"
+    bwa_cmd += "| samtools view -Shu - | samtools sort -@ 2 -m 8G -o - /tmp/#{sample.safe_name}_#{i} > #{lib_bam}"
     cmd << "\"#{bwa_cmd}\""
     return false
   end
@@ -431,12 +429,13 @@ class Optical::ChipAnalysis
   end
 
   def merge_library_parts(lib,final_bam,sample_safe_name)
+    sort = lib.is_paired? ? "queryname" : "coordinate" 
     cmd = @conf.cluster_cmd_prefix(free:8, max:56, sync:true, name:"merge_#{sample_safe_name}") +
       %W(picard MergeSamFiles OUTPUT=#{final_bam} VALIDATION_STRINGENCY=LENIENT MAX_RECORDS_IN_RAM=6000000
-         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=true SORT_ORDER=coordinate) +
+         COMPRESSION_LEVEL=8 USE_THREADING=True ASSUME_SORTED=false SORT_ORDER=#{sort}) +
          lib.parts.map {|p| "INPUT=#{p.bam_path}" }
     puts cmd.join(" ") if @conf.verbose
-    unless system(*cmd)
+    unless system({"JAVA_MEM_OPTS"=>"-Xmx48G"},*cmd)
       add_error("Failure in merge of library parts #{final_bam} of sample #{sample_safe_name} #{$?.exitstatus}")
       return false
     end

@@ -27,7 +27,7 @@ class Optical::Filters::NullFilter
     filt_cmd = "samtools view -h -q #{min_score} #{bam_to_filter} |" +
       "awk -f #{script} "
     if name_sort_first
-      filt_cmd += "| samtools view -Sbuh - | samtools sort -@ 2 -m 4G -o - /tmp/sort_#{$$} > #{output_bam}"
+      filt_cmd += "| samtools view -Sbuh - | samtools sort  -@ 2 -m 4G -O bam -T /tmp/sort_#{$$} > #{output_bam}"
     else
       filt_cmd += "| samtools view -Sbh - > #{output_bam}"
     end
